@@ -1,0 +1,150 @@
+default:
+  copilot:
+    license: MIT
+    metadata:
+      author: Fabrizio Cafolla
+      version: '1.0'
+  claude:
+    license: MIT
+    metadata:
+      author: Fabrizio Cafolla
+      version: '1.0'
+
+skills:
+  copilot-agent-creator:
+    copilot:
+      name: copilot-agent-creator
+      description: >-
+        Guide for creating effective Copilot Custom Agents. Use this when users
+        want to create a new custom agent (or update an existing one) that
+        extends Copilot's capabilities with specialized domain expertise,
+        workflows, and tool configurations.
+    claude:
+      name: copilot-agent-creator
+      description: >-
+        Guide for creating effective Copilot Custom Agents. Use this when users
+        want to create a new custom agent (or update an existing one) that
+        extends Copilot's capabilities with specialized domain expertise,
+        workflows, and tool configurations.
+
+  copilot-skill-creator:
+    copilot:
+      name: skill-creator
+      description: >-
+        Guide for creating effective skills. This skill should be used when
+        users want to create a new skill (or update an existing skill) that
+        extends Claude's capabilities with specialized knowledge, workflows, or
+        tool integrations.
+    claude:
+      name: skill-creator
+      description: >-
+        Guide for creating effective skills. This skill should be used when
+        users want to create a new skill (or update an existing skill) that
+        extends Claude's capabilities with specialized knowledge, workflows, or
+        tool integrations.
+      metadata:
+        ref: 'https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md?plain=1'
+
+  developer-frontend-design:
+    copilot:
+      name: developer-frontend-design
+      description: >-
+        Create distinctive, production-grade frontend interfaces with high
+        design quality. Use this skill when the user asks to build web
+        components, pages, artifacts, posters, or applications (examples
+        include websites, landing pages, dashboards, React components,
+        HTML/CSS layouts, or when styling/beautifying any web UI). Generates
+        creative, polished code and UI design that avoids generic AI aesthetics.
+    claude:
+      name: developer-frontend-design
+      description: >-
+        Create distinctive, production-grade frontend interfaces with high
+        design quality. Use this skill when the user asks to build web
+        components, pages, artifacts, posters, or applications (examples
+        include websites, landing pages, dashboards, React components,
+        HTML/CSS layouts, or when styling/beautifying any web UI). Generates
+        creative, polished code and UI design that avoids generic AI aesthetics.
+
+  developer-python:
+    copilot:
+      name: developer-python
+      description: Python coding conventions and guidelines
+    claude:
+      name: developer-python
+      description: Python coding conventions and guidelines
+
+  developer-shell:
+    copilot:
+      name: developer-shell
+      description: >-
+        Shell scripting best practices and conventions for bash, sh, zsh, and
+        other shells
+    claude:
+      name: developer-shell
+      description: >-
+        Shell scripting best practices and conventions for bash, sh, zsh, and
+        other shells
+
+  developer-terraform:
+    copilot:
+      name: developer-terraform
+      description: >-
+        Use when working with Terraform or OpenTofu - creating modules, writing
+        tests (native test framework, Terratest), setting up CI/CD pipelines,
+        reviewing configurations, choosing between testing approaches, debugging
+        state issues, implementing security scanning (trivy, checkov), or making
+        infrastructure-as-code architecture decisions
+    claude:
+      name: developer-terraform
+      description: >-
+        Use when working with Terraform or OpenTofu - creating modules, writing
+        tests (native test framework, Terratest), setting up CI/CD pipelines,
+        reviewing configurations, choosing between testing approaches, debugging
+        state issues, implementing security scanning (trivy, checkov), or making
+        infrastructure-as-code architecture decisions
+
+  expert-of-brainstorming-and-communication:
+    copilot:
+      name: expert-of-brainstorming-and-communication
+      description: >-
+        Expert of guidelines and best practices for brainstorming and
+        communication in technical and business contexts. Use when generating
+        ideas, solving problems, or communicating complex information to clients
+        and stakeholders.
+    claude:
+      name: expert-of-brainstorming-and-communication
+      description: >-
+        Expert of guidelines and best practices for brainstorming and
+        communication in technical and business contexts. Use when generating
+        ideas, solving problems, or communicating complex information to clients
+        and stakeholders.
+
+  expert-of-copywriting-and-communication:
+    copilot:
+      name: expert-of-copywriting-and-communication
+      description: >-
+        Expert of guidelines and best practices for copywriting and
+        communication across various channels, including social media, websites,
+        and advertising. Use when creating or reviewing copy to ensure clarity,
+        engagement, and alignment with brand voice.
+    claude:
+      name: expert-of-copywriting-and-communication
+      description: >-
+        Expert of guidelines and best practices for copywriting and
+        communication across various channels, including social media, websites,
+        and advertising. Use when creating or reviewing copy to ensure clarity,
+        engagement, and alignment with brand voice.
+
+  expert-of-tech-talk:
+    copilot:
+      name: expert-of-tech-talk
+      description: >-
+        Expert in technical talk design. Use this skill for brainstorming, idea
+        selection, title/abstract writing, slide structure, speaker notes, and
+        building a clear, natural flow.
+    claude:
+      name: expert-of-tech-talk
+      description: >-
+        Expert in technical talk design. Use this skill for brainstorming, idea
+        selection, title/abstract writing, slide structure, speaker notes, and
+        building a clear, natural flow.

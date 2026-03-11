@@ -1,0 +1,82 @@
+default:
+  copilot:
+  claude:
+
+agents:
+  developer:
+    copilot:
+      name: Developer
+      description: >-
+        This custom agent is responsible for implementing code changes based on
+        user requirements. It follows a structured workflow to ensure
+        high-quality code that meets specifications and passes all tests before
+        completion.
+      tools:
+        - execute
+        - read
+        - edit
+        - search
+        - web
+        - agent
+        - todo
+        - filesystem/*
+        - github-mcp/*
+        - terraform/*
+    claude:
+      name: Developer
+      description: >-
+        This custom agent is responsible for implementing code changes based on
+        user requirements. It follows a structured workflow to ensure
+        high-quality code that meets specifications and passes all tests before
+        completion.
+      allowedTools:
+        - Read
+        - Edit
+        - Bash
+
+  tech-consultant:
+    copilot:
+      name: Tech Consultant
+      description: >-
+        Senior cloud consultant for technical design, architecture decisions,
+        and professional client communication.
+      tools:
+        - read
+        - agent
+        - edit
+        - search
+        - web
+        - todo
+        - filesystem/*
+    claude:
+      name: Tech Consultant
+      description: >-
+        Senior cloud consultant for technical design, architecture decisions,
+        and professional client communication.
+      allowedTools:
+        - Read
+        - WebSearch
+
+  marketing-strategist:
+    copilot:
+      name: Marketing Strategist
+      description: >-
+        Senior marketing strategist for SEO, copywriting, brand positioning,
+        and multi-channel communication strategies.
+      tools:
+        - read
+        - agent
+        - edit
+        - search
+        - web
+        - filesystem/*
+        - todo
+    claude:
+      name: Marketing Strategist
+      description: >-
+        Senior marketing strategist for SEO, copywriting, brand positioning,
+        and multi-channel communication strategies.
+      allowedTools:
+        - Read
+        - Edit
+        - WebSearch

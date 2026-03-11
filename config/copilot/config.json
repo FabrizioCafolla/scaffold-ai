@@ -1,0 +1,10 @@
+{
+  "allowedTools": [],
+  "deniedTools": [],
+  "allowedPaths": [],
+  "deniedPaths": [],
+  "allowedUrls": [],
+  "deniedUrls": [],
+  "trustedDirectories": [],
+  "autoCompaction": true
+}

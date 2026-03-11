@@ -1,0 +1,41 @@
+name: Release devcontainer feature
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - devcontainer-feature.json
+  #     - install.sh
+  #     - scaffold.py
+  #     - config/**
+  #     - content/**
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # devcontainers/action expects: src/<feature-id>/devcontainer-feature.json
+      # Since this repo keeps everything at root, we build the layout at publish time.
+      - name: Prepare feature structure
+        run: |
+          mkdir -p src/scaffold-ai
+          cp devcontainer-feature.json install.sh scaffold.py src/scaffold-ai/
+          cp -R config content src/scaffold-ai/
+
+      - name: Publish feature to GHCR
+        uses: devcontainers/action@v1.4.3
+        with:
+          publish-features: 'true'
+          base-path-to-features: './src'
+          generate-docs: 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
