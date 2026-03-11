@@ -1,0 +1,36 @@
+{
+  "id": "scaffold-ai",
+  "version": "0.1.0",
+  "name": "Scaffold AI",
+  "description": "Scaffolds AI agent and skill assets (Copilot, Claude) into the workspace at container start.",
+  "documentationURL": "https://containers.dev/features",
+  "installsAfter": ["ghcr.io/devcontainers/features/python:1"],
+  "options": {
+    "copilot": {
+      "type": "boolean",
+      "default": true,
+      "description": "Scaffold Copilot agents and skills into .github/ (agents/, skills/, prompts/)."
+    },
+    "claude": {
+      "type": "boolean",
+      "default": true,
+      "description": "Scaffold Claude agents and skills into .claude/ (agents/, skills/, commands/)."
+    },
+    "createFileMCP": {
+      "type": "boolean",
+      "default": true,
+      "description": "Copy MCP config template to workspace root for AI models selected. Skipped if already exists."
+    },
+    "createFileSetting": {
+      "type": "boolean",
+      "default": true,
+      "description": "Copy settings templates to workspace for AI models selected. Skipped if already exist."
+    },
+    "updateGitignore": {
+      "type": "boolean",
+      "default": true,
+      "description": "Add scaffold-managed paths to .gitignore, wrapped between # [START] Scaffold AI and # [END] Scaffold AI markers. Block is updated on every run."
+    }
+  },
+  "postStartCommand": "scaffold-ai-cmd"
+}

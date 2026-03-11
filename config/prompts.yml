@@ -1,0 +1,8 @@
+prompts:
+  test:
+    copilot:
+      name: test
+      description: ...
+    claude:
+      name: test
+      description: ...
