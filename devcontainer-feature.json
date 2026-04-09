@@ -1,0 +1,52 @@
+{
+  "id": "scaffold-ai",
+  "version": "0.1.0",
+  "name": "Scaffold AI",
+  "description": "Scaffolds AI agent and skill assets (Claude, Copilot) into the workspace. Works at container create time and skips subsequent runs when content has not changed.",
+  "documentationURL": "https://containers.dev/features",
+  "installsAfter": ["ghcr.io/devcontainers/features/python:1"],
+  "options": {
+    "tools": {
+      "type": "string",
+      "default": "claude",
+      "description": "Comma-separated list of tools to scaffold. Supported values: claude, copilot. Default: claude only."
+    },
+    "createFileMCP": {
+      "type": "boolean",
+      "default": true,
+      "description": "Copy MCP config template to workspace root for AI models selected. Skipped if already exists."
+    },
+    "createFileMcpVscode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Copy .vscode/mcp.json template to workspace. Skipped if already exists."
+    },
+    "createFileSetting": {
+      "type": "boolean",
+      "default": true,
+      "description": "Copy settings templates to workspace for AI models selected. Skipped if already exist."
+    },
+    "updateGitignore": {
+      "type": "boolean",
+      "default": true,
+      "description": "Add scaffold-managed paths to .gitignore, wrapped between # [START] Scaffold AI and # [END] Scaffold AI markers. Block is updated on every run."
+    },
+    "installDefaults": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install bundled default agents and skills from scaffold-ai. Set to false to use only contentRepo content."
+    },
+    "contentRepo": {
+      "type": "string",
+      "default": "",
+      "description": "GitHub repo URL providing additional agents/skills (e.g. https://github.com/user/my-ai-content). Merged on top of defaults. Requires GITHUB_TOKEN secret for private repos."
+    },
+    "contentRepoRef": {
+      "type": "string",
+      "default": "main",
+      "description": "Branch or tag of the content repo to use."
+    }
+  },
+  "onCreateCommand": "scaffold-ai-install",
+  "postStartCommand": "scaffold-ai-cmd"
+}
