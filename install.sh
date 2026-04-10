@@ -12,19 +12,27 @@ INSTALL_DEFAULTS="${INSTALLDEFAULTS:-true}"
 CONTENT_REPO="${CONTENTREPO:-}"
 CONTENT_REPO_REF="${CONTENTREPOREF:-main}"
 
-# Ensure python3 and python3-venv are available (not always bundled in base images)
-_need_apt=false
-command -v python3 &>/dev/null || _need_apt=true
-python3 -c 'import venv' 2>/dev/null   || _need_apt=true
-if [[ "${_need_apt}" == "true" ]]; then
-  echo "[INFO] Installing python3 / python3-venv via apt..."
-  apt-get update -y -qq && apt-get install -y -qq python3 python3-venv
+# ---------------------------------------------------------------------------
+# Verify Python 3.9+ with venv support.
+# This is a prerequisite — scaffold-ai does NOT install Python.
+# The user must provide it via base image or the devcontainer python feature.
+# ---------------------------------------------------------------------------
+if ! command -v python3 &>/dev/null; then
+  echo "[ERROR] scaffold-ai requires Python 3.9+ but python3 was not found."
+  echo ""
+  echo "  Add the Python devcontainer feature BEFORE scaffold-ai:"
+  echo ""
+  echo '    "features": {'
+  echo '      "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },'
+  echo '      "ghcr.io/fabriziocafolla/scaffold-ai/scaffold-ai:0": { ... }'
+  echo '    }'
+  echo ""
+  exit 1
 fi
 
-# Verify Python 3.9+
 PY_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-PY_MAJOR=$(python3  -c 'import sys; print(sys.version_info.major)')
-PY_MINOR=$(python3  -c 'import sys; print(sys.version_info.minor)')
+PY_MAJOR=$(python3 -c 'import sys; print(sys.version_info.major)')
+PY_MINOR=$(python3 -c 'import sys; print(sys.version_info.minor)')
 if [[ "${PY_MAJOR}" -lt 3 ]] || [[ "${PY_MAJOR}" -eq 3 && "${PY_MINOR}" -lt 9 ]]; then
   echo "[ERROR] scaffold-ai requires Python 3.9+, found ${PY_VERSION}."
   exit 1

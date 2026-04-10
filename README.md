@@ -6,6 +6,37 @@ Works both as a **devcontainer feature** (automatic, runs only when content chan
 
 ---
 
+## Prerequisites
+
+### Supported base images
+
+scaffold-ai requires **bash** and **Python 3.9+** (which includes `venv` out of the box).
+
+| Base                              | Supported | Notes                                          |
+| --------------------------------- | --------- | ---------------------------------------------- |
+| Debian / Ubuntu                   | Yes       | All `mcr.microsoft.com/devcontainers/*` images |
+| RHEL / Fedora / CentOS           | Yes       | bash and python3 available via dnf/yum         |
+| Alpine                            | No        | No bash by default (busybox sh only)           |
+
+### Python 3.9+
+
+scaffold-ai does **not** install Python — you must provide it via the base image or the devcontainer Python feature.
+
+For devcontainers, add the Python feature **before** scaffold-ai:
+
+```json
+{
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
+    "ghcr.io/fabriziocafolla/scaffold-ai/scaffold-ai:0": { "..." : "..." }
+  }
+}
+```
+
+For CLI usage, ensure `python3 >= 3.9` is in your PATH.
+
+---
+
 ## Usage
 
 ### Devcontainer
@@ -15,6 +46,7 @@ Add the feature to your `.devcontainer/devcontainer.json`:
 ```json
 {
   "features": {
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
     "ghcr.io/fabriziocafolla/scaffold-ai:0": {
       "tools": "claude",
       "createFileMCP": true,
@@ -64,7 +96,7 @@ Run directly from any project root without installing anything:
 # defaults (Claude only)
 curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh | bash
 
-# with custom options — pass args after `bash -s --`
+# with custom options pass args after `bash -s --`
 curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh | bash -s -- --tools claude,copilot --no-gitignore
 ```
 
@@ -81,17 +113,17 @@ bash scaffold-ai.sh [OPTIONS]
 | ------------------------ | ----------- | ------------------------------------------ |
 | `--workspace DIR`        | current dir | Target workspace directory                 |
 | `--tools LIST`           | `claude`    | Comma-separated tools: `claude`, `copilot` |
-| `--mcp-vscode`           | —           | Create `.vscode/mcp.json` template         |
-| `--no-mcp`               | —           | Skip MCP config file creation              |
-| `--no-settings`          | —           | Skip settings file creation                |
-| `--no-gitignore`         | —           | Skip `.gitignore` update                   |
-| `--no-defaults`          | —           | Skip bundled default content               |
-| `--content-repo URL`     | —           | GitHub repo with additional agents/skills  |
+| `--mcp-vscode`           |             | Create `.vscode/mcp.json` template         |
+| `--no-mcp`               |             | Skip MCP config file creation              |
+| `--no-settings`          |             | Skip settings file creation                |
+| `--no-gitignore`         |             | Skip `.gitignore` update                   |
+| `--no-defaults`          |             | Skip bundled default content               |
+| `--content-repo URL`     |             | GitHub repo with additional agents/skills  |
 | `--content-repo-ref REF` | `main`      | Branch or tag for content repo             |
 | `--ref BRANCH\|TAG`      | `main`      | scaffold-ai git ref to clone               |
-| `--interactive`          | —           | Guided prompt mode                         |
+| `--interactive`          |             | Guided prompt mode                         |
 
-**Requirements:** `git`, `python3 ≥ 3.9` (pyyaml is installed automatically in an isolated venv).
+**Requirements:** `git`, `python3 >= 3.9` with `venv` module (pyyaml is installed automatically in an isolated venv).
 
 #### Interactive mode
 
@@ -103,7 +135,7 @@ Prompts for each option, using devcontainer option names as question labels. Fla
 
 #### Content repo
 
-Point to any GitHub repo that follows the `content/` structure (agents and/or skills subdirectories). Remote content is merged on top of bundled defaults — same key = remote wins.
+Point to any GitHub repo that follows the `content/` structure (agents and/or skills subdirectories). Remote content is merged on top of bundled defaults same key = remote wins.
 
 ```bash
 # public repo
