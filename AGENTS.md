@@ -1,56 +1,121 @@
-# Scaffold AI
+# Scaffold AI — Developer Guide
 
-A tool-agnostic devcontainer feature that scaffolds AI agent/skill assets into the workspace at container start.
+scaffold-ai is a devcontainer feature and standalone CLI that scaffolds AI agent and skill assets (Claude, GitHub Copilot) into a workspace. Content is tool-agnostic Markdown; per-tool YAML frontmatter is injected at scaffold time.
 
-## Architecture
+## Repository Layout
 
 ```
-apps/scaffold-ai/
-  content/               # Pure Markdown — zero frontmatter, tool-agnostic
-    agents/              # One .md per agent (key matches config entry)
-    skills/              # One subdir per skill, each with SKILL.md
-      <skill-key>/
-        SKILL.md
-        references/      # Optional reference files (e.g. terraform/)
-    prompts/             # Placeholder (future use)
-  config/                # Per-tool metadata (frontmatter injected at runtime)
-    paths.yml            # Output paths per tool (copilot / claude)
-    agents.yml           # Agent frontmatter for each tool
-    skills.yml           # Skill frontmatter for each tool
-    prompts.yml          # Placeholder
-    mcp.json             # Template for .mcp.json (used when createFileMCP=true)
-    claude-settings.json          # Template for .claude/settings.json
-    claude-settings.local.json    # Template for .claude/settings.local.json
-  scaffold.py            # Python 3.13 scaffolder: merges content + config, creates files
-  install.sh             # Devcontainer install: copies feature, installs pyyaml, writes wrapper
-  Makefile               # Local test runner (make test / make clean)
-  devcontainer-feature.json
+scaffold-ai/
+├── content/                    # Tool-agnostic Markdown content
+│   ├── paths.yml               # Output paths per tool (copilot / claude / vscode)
+│   ├── agents/
+│   │   ├── metadata.yml        # Per-tool frontmatter for each agent
+│   │   └── <key>.md            # Agent body (no frontmatter)
+│   ├── skills/
+│   │   ├── metadata.yml        # Per-tool frontmatter for each skill
+│   │   └── <skill-key>/
+│   │       ├── SKILL.md        # Skill body (no frontmatter)
+│   │       └── references/     # Optional reference docs
+│   └── prompts/                # Future use
+├── config/                     # Per-tool config templates
+│   ├── claude/                 # mcp.json, settings.json, settings.local.json
+│   ├── copilot/                # config.json, mcp-config.json
+│   └── vscode/                 # mcp.json
+├── scaffold.py                 # Main Python scaffolder
+├── install.sh                  # Devcontainer install script
+├── cli.sh                      # Standalone CLI (curl | bash usage)
+├── Makefile                    # Local test commands
+└── devcontainer-feature.json   # Feature manifest
 ```
 
 ## How It Works
 
-1. **At build time** (`install.sh` runs):
-   - Installs `pyyaml` via pip
-   - Copies the entire feature directory to `/usr/local/share/scaffold-ai/`
-   - Writes `/usr/local/bin/scaffold-ai-cmd` (shell wrapper around `scaffold.py`)
+**Devcontainer path:**
 
-2. **At container start** (`postStartCommand` calls `scaffold-ai-cmd`):
-   - `scaffold.py` reads `config/paths.yml`, `config/agents.yml`, `config/skills.yml`
-   - For each enabled tool (`copilot`, `claude`), it:
-     - Reads the pure Markdown body from `content/`
-     - Prepends the tool-specific YAML frontmatter
-     - Writes assembled files to the workspace (`.github/` for Copilot, `.claude/` for Claude)
-   - If `--create-file-mcp true`: copies `config/mcp.json` → `<workspace>/.mcp.json`
-   - If `--create-file-setting true`: copies settings templates → `.claude/settings.json` and `.claude/settings.local.json`
+1. `install.sh` runs at image build — installs pyyaml, copies the feature to `/usr/local/share/scaffold-ai/`, writes `/usr/local/bin/scaffold-ai-cmd`
+2. On `onCreateCommand` — `scaffold-ai-cmd` runs `scaffold.py`, which merges content + metadata and writes assembled files to the workspace
+3. `postStartCommand` re-runs only when a content hash has changed (no-op on clean restarts)
 
-## Feature Options
+**CLI path:**
 
-| Option              | Type    | Default | Description                                                      |
-| ------------------- | ------- | ------- | ---------------------------------------------------------------- |
-| `copilot`           | boolean | `true`  | Scaffold Copilot assets (`.github/agents/`, `.github/skills/`)   |
-| `claude`            | boolean | `true`  | Scaffold Claude assets (`.claude/agents/`, `.claude/skills/`)    |
-| `createFileMCP`     | boolean | `true`  | Create `.mcp.json` at workspace root with MCP server definitions |
-| `createFileSetting` | boolean | `true`  | Create `.claude/settings.json` and `.claude/settings.local.json` |
+1. `cli.sh` is fetched via `curl | bash`
+2. It clones scaffold-ai (or the specified `--ref`), optionally clones a `--content-repo`, then runs `scaffold.py` directly
+
+**scaffold.py reads:**
+
+- `content/paths.yml` — where to write output files per tool
+- `content/agents/metadata.yml` — frontmatter for each agent, per tool
+- `content/skills/metadata.yml` — frontmatter for each skill, per tool
+- Markdown bodies from `content/agents/` and `content/skills/`
+- Remote content-repo files merged on top (same key = remote wins)
+
+## Adding an Agent
+
+1. Create `content/agents/<key>.md` — Markdown body only, no frontmatter
+2. Register it in `content/agents/metadata.yml`:
+
+```yaml
+agents:
+  <key>:
+    copilot:
+      name: Display Name
+      description: 'When Copilot should activate this agent.'
+      tools: [read, edit, execute, search, web, agent, todo, filesystem/*]
+    claude:
+      name: Display Name
+      description: 'When Claude should activate this agent.'
+      allowedTools: [Read, Edit, Bash]
+```
+
+## Adding a Skill
+
+1. Create `content/skills/<key>/SKILL.md` — Markdown body only, no frontmatter
+2. (Optional) Add reference docs under `content/skills/<key>/references/`
+3. Register it in `content/skills/metadata.yml`:
+
+```yaml
+skills:
+  <key>:
+    copilot:
+      name: <key>
+      description: 'When Copilot should invoke this skill.'
+    claude:
+      name: <key>
+      description: 'When Claude should invoke this skill.'
+```
+
+## Content Repo Format
+
+Private or supplemental content repos must follow the same layout as `content/`:
+
+```text
+your-content-repo/
+├── agents/
+│   ├── metadata.yml    # per-tool frontmatter
+│   └── <key>.md        # agent body (no frontmatter)
+└── skills/
+    ├── metadata.yml    # per-tool frontmatter
+    └── <skill-key>/
+        └── SKILL.md    # skill body (no frontmatter)
+```
+
+Key rules:
+
+- No frontmatter in `.md` files — frontmatter comes exclusively from `metadata.yml`
+- `metadata.yml` must start with a `default:` block followed by an `agents:` or `skills:` key
+- Same key in both repos → content repo wins; absent key → falls back to bundled defaults
+
+## Config Templates
+
+Files under `config/` are copied to the workspace when the corresponding feature option is enabled:
+
+| Source                              | Destination                   | Option                |
+| ----------------------------------- | ----------------------------- | --------------------- |
+| `config/claude/mcp.json`            | `.mcp.json`                   | `createFileMCP`       |
+| `config/claude/settings.json`       | `.claude/settings.json`       | `createFileSetting`   |
+| `config/claude/settings.local.json` | `.claude/settings.local.json` | `createFileSetting`   |
+| `config/copilot/mcp-config.json`    | `.copilot/mcp-config.json`    | always                |
+| `config/vscode/mcp.json`            | `.vscode/mcp.json`            | `createFileMcpVscode` |
 
 ## Local Testing
 
@@ -58,51 +123,3 @@ apps/scaffold-ai/
 make test    # scaffold into ./test/ with all flags enabled
 make clean   # remove ./test/
 ```
-
-## Adding a New Agent
-
-1. Create `content/agents/<key>.md` — pure Markdown body, no frontmatter
-2. Add an entry under `config/agents.yml`:
-   ```yaml
-   agents:
-     <key>:
-       copilot:
-         name: Display Name
-         description: '...'
-         tools: [read, edit, ...]
-       claude:
-         name: Display Name
-         description: '...'
-         allowedTools: [Read, Edit]
-   ```
-
-## Adding a New Skill
-
-1. Create `content/skills/<key>/SKILL.md` — pure Markdown body, no frontmatter
-2. (Optional) Add `content/skills/<key>/references/` for reference files
-3. Add an entry under `config/skills.yml`:
-   ```yaml
-   skills:
-     <key>:
-       copilot:
-         name: <key>
-         description: '...'
-       claude:
-         name: <key>
-         description: '...'
-   ```
-
-## Running Manually
-
-````bash
-python3 /usr/local/share/scaffold-ai/scaffold.py \
-  --workspace /path/to/workspace \
-  --copilot true \
-  --claude true \
-  --create-file-mcp true \
-  --create-file-setting true
-
-# or via the installed wrapper:
-scaffold-ai-cmd /path/to/workspace
-```scaffold-ai-cmd /path/to/workspace
-````

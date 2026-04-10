@@ -1,6 +1,6 @@
 {
   "id": "scaffold-ai",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "name": "Scaffold AI",
   "description": "Scaffolds AI agent and skill assets (Claude, Copilot) into the workspace. Works at container create time and skips subsequent runs when content has not changed.",
   "documentationURL": "https://containers.dev/features",
