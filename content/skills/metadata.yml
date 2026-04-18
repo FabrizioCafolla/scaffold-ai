@@ -1,0 +1,246 @@
+default:
+  copilot:
+    license: MIT
+    metadata:
+      author: Fabrizio Cafolla
+      version: "1.0"
+  claude:
+    license: MIT
+    metadata:
+      author: Fabrizio Cafolla
+      version: "1.0"
+
+skills:
+  agent-creator:
+    category: meta
+    subcategory: skills-and-agents
+    copilot:
+      name: agent-creator
+      description: >-
+        Guide for creating effective custom AI agents. Use when designing a new
+        agent (or updating an existing one) that specializes a general-purpose
+        AI assistant with domain expertise, workflows, tool configurations, and
+        governance guardrails.
+    claude:
+      name: agent-creator
+      description: >-
+        Guide for creating effective custom AI agents. Use when designing a new
+        agent (or updating an existing one) that specializes a general-purpose
+        AI assistant with domain expertise, workflows, tool configurations, and
+        governance guardrails.
+
+  skill-creator:
+    category: meta
+    subcategory: skills-and-agents
+    copilot:
+      name: skill-creator
+      description: >-
+        Guide for creating effective AI skills. Use when creating a new skill
+        (or updating an existing one) that extends an AI assistant's capabilities
+        with specialized knowledge, multi-step workflows, or tool integrations.
+    claude:
+      name: skill-creator
+      description: >-
+        Guide for creating effective AI skills. Use when creating a new skill
+        (or updating an existing one) that extends an AI assistant's capabilities
+        with specialized knowledge, multi-step workflows, or tool integrations.
+      metadata:
+        ref: "https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md?plain=1"
+
+  developer-docker:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-docker
+      description: >-
+        Docker and container best practices. Use when writing Dockerfiles,
+        docker-compose files, optimizing images, setting up multi-stage builds,
+        or designing containerized application architectures.
+    claude:
+      name: developer-docker
+      description: >-
+        Docker and container best practices. Use when writing Dockerfiles,
+        docker-compose files, optimizing images, setting up multi-stage builds,
+        or designing containerized application architectures.
+
+  developer-framework-astro:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-framework-astro
+      description: >-
+        Astro framework conventions and patterns. Use when building Astro
+        projects components, content collections, SSR/SSG configuration,
+        integrations, islands architecture, or any Astro-specific patterns.
+    claude:
+      name: developer-framework-astro
+      description: >-
+        Astro framework conventions and patterns. Use when building Astro
+        projects components, content collections, SSR/SSG configuration,
+        integrations, islands architecture, or any Astro-specific patterns.
+
+  developer-github-actions:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-github-actions
+      description: >-
+        GitHub Actions best practices. Use when writing workflow YAML,
+        configuring runners, setting up caching, creating reusable workflows,
+        managing secrets, or hardening CI/CD pipelines.
+    claude:
+      name: developer-github-actions
+      description: >-
+        GitHub Actions best practices. Use when writing workflow YAML,
+        configuring runners, setting up caching, creating reusable workflows,
+        managing secrets, or hardening CI/CD pipelines.
+
+  developer-go:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-go
+      description: >-
+        Go coding conventions and idiomatic patterns. Use when writing Go code,
+        designing packages, working with goroutines and channels, handling
+        errors, structuring modules, or writing Go tests.
+    claude:
+      name: developer-go
+      description: >-
+        Go coding conventions and idiomatic patterns. Use when writing Go code,
+        designing packages, working with goroutines and channels, handling
+        errors, structuring modules, or writing Go tests.
+
+  developer-javascript:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-javascript
+      description: >-
+        Modern JavaScript conventions and patterns. Use when writing vanilla JS,
+        ES2025+ features, async/await patterns, DOM manipulation, Node.js
+        modules, or any JavaScript outside a typed framework.
+    claude:
+      name: developer-javascript
+      description: >-
+        Modern JavaScript conventions and patterns. Use when writing vanilla JS,
+        ES2025+ features, async/await patterns, DOM manipulation, Node.js
+        modules, or any JavaScript outside a typed framework.
+
+  developer-kubernetes:
+    category: engineering
+    subcategory: architecture-and-platform
+    copilot:
+      name: developer-kubernetes
+      description: >-
+        Kubernetes manifest writing and cluster operations. Use when writing
+        Kubernetes YAML, creating Helm charts, configuring RBAC, designing
+        operator patterns, setting resource limits, or troubleshooting with
+        kubectl.
+    claude:
+      name: developer-kubernetes
+      description: >-
+        Kubernetes manifest writing and cluster operations. Use when writing
+        Kubernetes YAML, creating Helm charts, configuring RBAC, designing
+        operator patterns, setting resource limits, or troubleshooting with
+        kubectl.
+
+  developer-microservices-and-api:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-microservices-and-api
+      description: >-
+        Microservices architecture and API design patterns. Use when designing
+        service boundaries, writing REST or gRPC APIs, implementing GraphQL,
+        handling versioning, defining contracts, or documenting API interfaces.
+    claude:
+      name: developer-microservices-and-api
+      description: >-
+        Microservices architecture and API design patterns. Use when designing
+        service boundaries, writing REST or gRPC APIs, implementing GraphQL,
+        handling versioning, defining contracts, or documenting API interfaces.
+
+  developer-python:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-python
+      description: Python coding conventions and guidelines
+    claude:
+      name: developer-python
+      description: Python coding conventions and guidelines
+
+  developer-shell:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-shell
+      description: >-
+        Shell scripting best practices and conventions for bash, sh, zsh, and
+        other shells
+    claude:
+      name: developer-shell
+      description: >-
+        Shell scripting best practices and conventions for bash, sh, zsh, and
+        other shells
+
+  developer-terraform:
+    category: engineering
+    subcategory: architecture-and-platform
+    copilot:
+      name: developer-terraform
+      description: >-
+        Use when working with Terraform or OpenTofu - creating modules, writing
+        tests (native test framework, Terratest), setting up CI/CD pipelines,
+        reviewing configurations, choosing between testing approaches, debugging
+        state issues, implementing security scanning (trivy, checkov), or making
+        infrastructure-as-code architecture decisions
+    claude:
+      name: developer-terraform
+      description: >-
+        Use when working with Terraform or OpenTofu - creating modules, writing
+        tests (native test framework, Terratest), setting up CI/CD pipelines,
+        reviewing configurations, choosing between testing approaches, debugging
+        state issues, implementing security scanning (trivy, checkov), or making
+        infrastructure-as-code architecture decisions
+
+  developer-typescript:
+    category: engineering
+    subcategory: build-and-quality
+    copilot:
+      name: developer-typescript
+      description: >-
+        TypeScript conventions and type system patterns. Use when writing
+        TypeScript, configuring tsconfig, designing type hierarchies, using
+        utility types, working with generics, or enforcing strict type safety.
+    claude:
+      name: developer-typescript
+      description: >-
+        TypeScript conventions and type system patterns. Use when writing
+        TypeScript, configuring tsconfig, designing type hierarchies, using
+        utility types, working with generics, or enforcing strict type safety.
+
+  developer-github-cli:
+    category: tools
+    subcategory: cli-and-tool-usage
+    copilot:
+      name: developer-github-cli
+      description: >-
+        GitHub CLI (gh) best practices for issues, pull requests, releases, and
+        repository operations. Use when creating issues, opening pull requests,
+        merging PRs, managing labels, running gh commands, searching GitHub,
+        interacting with GitHub Actions, or any GitHub operation from the
+        command line. Always use this skill when the user mentions gh, GitHub
+        CLI, creating a GitHub issue, or opening a pull request via CLI — even
+        if they don't explicitly say "gh".
+    claude:
+      name: developer-github-cli
+      description: >-
+        GitHub CLI (gh) best practices for issues, pull requests, releases, and
+        repository operations. Use when creating issues, opening pull requests,
+        merging PRs, managing labels, running gh commands, searching GitHub,
+        interacting with GitHub Actions, or any GitHub operation from the
+        command line. Always use this skill when the user mentions gh, GitHub
+        CLI, creating a GitHub issue, or opening a pull request via CLI — even
+        if they don't explicitly say "gh".
