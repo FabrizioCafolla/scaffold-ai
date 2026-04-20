@@ -26,10 +26,6 @@
 #   --ref BRANCH|TAG             scaffold-ai git ref to clone (default: main)
 #   --interactive                Guided prompt mode (mirrors devcontainer options)
 #   -h, --help                   Show this help
-#
-# Deprecated (use --tools instead):
-#   --copilot true|false
-#   --claude  true|false
 # =============================================================================
 set -euo pipefail
 
@@ -72,24 +68,24 @@ warn() { echo "[WARN]  $*" >&2; }
 
 usage() {
     cat <<EOF
-scaffold-ai CLI scaffold AI agent/skill assets into any workspace
+scaffold-ai  scaffold AI agent/skill assets into any workspace
 
 Usage: $SCRIPT_NAME [OPTIONS]
-       curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh | bash
+       curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh | bash -s -- [OPTIONS]
 
 Options:
-  --workspace DIR              Target workspace directory (default: current dir)
-  --tools LIST                 Comma-separated tools: claude, copilot (default: claude)
-  --mcp-vscode                 Create .vscode/mcp.json template
-  --no-mcp                     Skip MCP config file creation
-  --no-settings                Skip settings file creation
-  --no-gitignore               Skip .gitignore update
-  --no-defaults                Skip bundled default content
-  --content-repo URL           GitHub repo URL with additional agents/skills
-  --content-repo-ref REF       Branch or tag for content repo (default: main)
-  --ref BRANCH|TAG             scaffold-ai git ref to clone (default: main)
-  --interactive                Guided prompt mode
-  -h, --help                   Show this help
+  --workspace DIR         Target workspace directory (default: current dir)
+  --tools LIST            Comma-separated tools: claude, copilot (default: claude)
+  --mcp-vscode            Create .vscode/mcp.json template
+  --no-mcp                Skip MCP config file creation
+  --no-settings           Skip settings file creation
+  --no-gitignore          Skip .gitignore update
+  --no-defaults           Skip bundled default content
+  --content-repo URL      GitHub repo URL with additional agents/skills
+  --content-repo-ref REF  Branch or tag for content repo (default: main)
+  --ref BRANCH|TAG        scaffold-ai git ref to clone (default: main)
+  --interactive           Guided prompt mode
+  -h, --help              Show this help
 EOF
     exit 0
 }
@@ -175,15 +171,6 @@ while [[ $# -gt 0 ]]; do
         --ref)                GIT_REF="$2";               shift 2 ;;
         --interactive)        INTERACTIVE="true";          shift ;;
         -h|--help)            usage ;;
-        # Deprecated aliases
-        --copilot)
-            warn "--copilot is deprecated. Use --tools claude,copilot or --tools copilot instead."
-            [[ "$2" == "true" ]] && TOOLS="${TOOLS},copilot" || TOOLS=$(echo "${TOOLS}" | sed 's/,copilot//;s/copilot,//;s/^copilot$//')
-            shift 2 ;;
-        --claude)
-            warn "--claude is deprecated. Use --tools claude instead."
-            [[ "$2" == "false" ]] && TOOLS=$(echo "${TOOLS}" | sed 's/,claude//;s/claude,//;s/^claude$//')
-            shift 2 ;;
         *) die "Unknown option: $1. Use -h for help." ;;
     esac
 done

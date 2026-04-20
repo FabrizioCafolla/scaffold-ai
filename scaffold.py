@@ -12,6 +12,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import sys
 
 import yaml
 
@@ -123,16 +124,36 @@ def _update_gitignore(ws: pathlib.Path, entries: list[str]) -> None:
         print(f"  [gitignore] created .gitignore with scaffold block")
 
 
-def _compute_content_hash(feature_dir: pathlib.Path, content_repo_path: pathlib.Path | None) -> str:
-    """Hash the scaffold-ai version + content repo HEAD SHA (if any)."""
+def _compute_content_hash(
+    feature_dir: pathlib.Path,
+    content_repo_path: pathlib.Path | None,
+    content_repo_sha: str | None = None,
+) -> str:
+    """Compute a deterministic hash of the scaffold-ai identity + content repo identity.
+
+    scaffold-ai identity: HEAD SHA when available (git clone), version string as fallback
+    (devcontainer feature installed from tarball, no .git dir).
+
+    Content repo identity: pre-computed SHA string (from git ls-remote, avoids a clone)
+    takes precedence over local git; both are equivalent since they represent the same commit.
+    """
     h = hashlib.sha256()
 
-    version_file = feature_dir / "devcontainer-feature.json"
-    if version_file.exists():
-        data = json.loads(version_file.read_text())
-        h.update(data.get("version", "unknown").encode())
+    try:
+        sha = subprocess.check_output(
+            ["git", "-C", str(feature_dir), "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        h.update(sha)
+    except subprocess.CalledProcessError:
+        version_file = feature_dir / "devcontainer-feature.json"
+        if version_file.exists():
+            data = json.loads(version_file.read_text())
+            h.update(data.get("version", "unknown").encode())
 
-    if content_repo_path and content_repo_path.exists():
+    if content_repo_sha:
+        h.update(content_repo_sha.strip().encode())
+    elif content_repo_path and content_repo_path.exists():
         try:
             sha = subprocess.check_output(
                 ["git", "-C", str(content_repo_path), "rev-parse", "HEAD"],
@@ -259,13 +280,14 @@ def scaffold(
     update_gitignore: bool,
     install_defaults: bool,
     content_repo_local_path: str | None,
+    content_repo_sha: str | None = None,
 ) -> None:
     feature_dir = pathlib.Path(__file__).parent
     ws = pathlib.Path(workspace)
     content_repo_path = pathlib.Path(content_repo_local_path) if content_repo_local_path else None
 
     # --- Hash check: skip if nothing changed ---
-    digest = _compute_content_hash(feature_dir, content_repo_path)
+    digest = _compute_content_hash(feature_dir, content_repo_path, content_repo_sha)
     if _read_lock(ws) == digest:
         print(f"\n scaffold-ai  no changes detected skipping (workspace: {ws})\n")
         return
@@ -417,35 +439,31 @@ if __name__ == "__main__":
     parser.add_argument("--tools", default="claude", help="Comma-separated tools to scaffold (e.g. claude,copilot)")
     parser.add_argument("--create-file-mcp", default="true", help="Create MCP config file (true/false)")
     parser.add_argument("--create-file-mcp-vscode", default="false", help="Create .vscode/mcp.json (true/false)")
-    parser.add_argument("--create-file-setting", default="true", help="Create Claude settings files (true/false)")
+    parser.add_argument("--create-file-setting", default="true", help="Create settings files (true/false)")
     parser.add_argument("--update-gitignore", default="true", help="Add scaffold paths to .gitignore (true/false)")
     parser.add_argument("--install-defaults", default="true", help="Install bundled default content (true/false)")
     parser.add_argument("--content-repo-local-path", default="", help="Local path to pre-cloned content repo")
-    # Deprecated aliases kept for backwards compatibility
-    parser.add_argument("--copilot", default=None, help="[deprecated] Use --tools instead")
-    parser.add_argument("--claude", default=None, help="[deprecated] Use --tools instead")
+    parser.add_argument("--content-repo-sha", default="", help="Pre-computed HEAD SHA of the content repo (from git ls-remote); skips a local git call")
+    parser.add_argument("--check-only", action="store_true", help="Compare content hash against lock file without running scaffold; exits 0 if up-to-date, 1 if stale")
     args = parser.parse_args()
 
-    # Handle deprecated --copilot / --claude flags
-    if args.copilot is not None or args.claude is not None:
-        import sys
-        print("[WARN] --copilot and --claude are deprecated. Use --tools claude,copilot instead.", file=sys.stderr)
-        legacy_tools = []
-        if args.claude is None or _flag(args.claude):
-            legacy_tools.append("claude")
-        if args.copilot is not None and _flag(args.copilot):
-            legacy_tools.append("copilot")
-        tools = legacy_tools
-    else:
-        tools = _parse_tools(args.tools)
+    if args.check_only:
+        _feature_dir = pathlib.Path(__file__).parent
+        _ws = pathlib.Path(args.workspace)
+        _digest = _compute_content_hash(_feature_dir, None, content_repo_sha=args.content_repo_sha or None)
+        if _read_lock(_ws) == _digest:
+            print(f"\n scaffold-ai  no changes detected, skipping (workspace: {_ws})\n")
+            sys.exit(0)
+        sys.exit(1)
 
     scaffold(
         workspace=args.workspace,
-        tools=tools,
+        tools=_parse_tools(args.tools),
         create_file_mcp=_flag(args.create_file_mcp),
         create_file_mcp_vscode=_flag(args.create_file_mcp_vscode),
         create_file_setting=_flag(args.create_file_setting),
         update_gitignore=_flag(args.update_gitignore),
         install_defaults=_flag(args.install_defaults),
         content_repo_local_path=args.content_repo_local_path or None,
+        content_repo_sha=args.content_repo_sha or None,
     )

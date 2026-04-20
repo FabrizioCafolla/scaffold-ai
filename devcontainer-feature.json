@@ -47,6 +47,5 @@
       "description": "Branch or tag of the content repo to use."
     }
   },
-  "onCreateCommand": "scaffold-ai-install",
   "postStartCommand": "scaffold-ai-cmd"
 }
