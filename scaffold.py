@@ -154,6 +154,55 @@ def _write_lock(ws: pathlib.Path, digest: str) -> None:
     (ws / ".scaffold-ai.lock").write_text(digest + "\n")
 
 
+_MANIFEST_FILE = ".scaffold-ai.manifest.json"
+
+
+def _read_manifest(ws: pathlib.Path) -> dict:
+    p = ws / _MANIFEST_FILE
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _write_manifest(ws: pathlib.Path, manifest: dict) -> None:
+    (ws / _MANIFEST_FILE).write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def _cleanup_stale(
+    ws: pathlib.Path,
+    tool: str,
+    tool_paths: dict,
+    current_skill_keys: set[str],
+    current_agent_keys: set[str],
+    manifest: dict,
+) -> None:
+    """Remove skill/agent dirs and files that were managed in a previous run but are no longer in metadata."""
+    prev = manifest.get(tool, {})
+    base = ws / tool_paths["base_dir"]
+
+    stale_skills = set(prev.get("skills", [])) - current_skill_keys
+    if stale_skills:
+        skills_base = base / tool_paths["skills"]["dir"]
+        for key in sorted(stale_skills):
+            stale_dir = skills_base / key
+            if stale_dir.exists():
+                shutil.rmtree(stale_dir)
+                print(f"  │  [cleanup] removed stale skill dir: {stale_dir.relative_to(ws)}/")
+
+    stale_agents = set(prev.get("agents", [])) - current_agent_keys
+    if stale_agents:
+        agents_dir = base / tool_paths["agents"]["dir"]
+        suffix = tool_paths["agents"]["suffix"]
+        for key in sorted(stale_agents):
+            stale_file = agents_dir / f"{key}{suffix}"
+            if stale_file.exists():
+                stale_file.unlink()
+                print(f"  │  [cleanup] removed stale agent file: {stale_file.relative_to(ws)}")
+
+
 def _load_content(
     feature_dir: pathlib.Path,
     install_defaults: bool,
@@ -234,7 +283,9 @@ def scaffold(
     )
     print(f"  tools: {enabled}  |  {flags}\n")
 
-    gitignore_entries: list[str] = [".scaffold-ai.lock"]
+    manifest = _read_manifest(ws)
+    new_manifest: dict = {}
+    gitignore_entries: list[str] = [".scaffold-ai.lock", _MANIFEST_FILE]
 
     for tool in tools:
         if tool not in paths_cfg:
@@ -246,6 +297,11 @@ def scaffold(
         extra_files = tool_paths.get("extra_files", {})
 
         print(f"  ┌─ [{tool.upper()}]  base: {base}")
+
+        current_skill_keys = {k for k, v in skills_cfg.get("skills", {}).items() if tool in v}
+        current_agent_keys = {k for k, v in agents_cfg.get("agents", {}).items() if tool in v}
+        _cleanup_stale(ws, tool, tool_paths, current_skill_keys, current_agent_keys, manifest)
+        new_manifest[tool] = {"skills": sorted(current_skill_keys), "agents": sorted(current_agent_keys)}
 
         # --- Agents ---
         # Only overwrite files for managed agents — do not wipe the entire directory.
@@ -339,6 +395,7 @@ def scaffold(
     all_agent_keys = list(agents_cfg.get("agents", {}).keys())
     _update_agents_md(ws, feature_dir, content_repo_path, all_skill_keys, all_agent_keys)
 
+    _write_manifest(ws, new_manifest)
     _write_lock(ws, digest)
     print(f"  scaffold-ai complete\n")
 
