@@ -6,23 +6,14 @@ copilot:
   skills:
     dir: skills
     filename: SKILL.md
-  prompts:
-    dir: prompts
-    suffix: .prompt.md
   extra_files:
-    mcp:
-      - source: config/copilot/mcp-config.json
-        dest: .copilot/mcp-config.json
-        ignore: false
     settings:
       - source: config/copilot/config.json
         dest: .copilot/config.json
         ignore: false
-
-vscode:
-  config:
-    mcp: config/vscode/mcp.json
-    dest: .vscode/mcp.json
+  hooks:
+    source: config/copilot/hooks.json
+    dest: .github/hooks/hooks.json
 
 claude:
   base_dir: .claude
@@ -36,9 +27,6 @@ claude:
     dir: commands
     suffix: .md
   extra_files:
-    mcp:
-      - source: config/claude/mcp.json
-        dest: .mcp.json
     settings:
       - source: config/claude/settings.json
         dest: .claude/settings.json
@@ -46,3 +34,5 @@ claude:
       - source: config/claude/settings.local.json
         dest: .claude/settings.local.json
         ignore: true
+  hooks:
+    source: config/claude/hooks.json

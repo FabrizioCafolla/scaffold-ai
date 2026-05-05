@@ -16,8 +16,8 @@
 # Options:
 #   --workspace DIR              Target workspace directory (default: current dir)
 #   --tools claude|copilot|...   Comma-separated tools to scaffold (default: claude)
-#   --mcp-vscode                 Create .vscode/mcp.json
-#   --no-mcp                     Skip MCP config file creation
+#   --no-mcp                     Skip .mcp.json creation
+#   --no-hooks                   Skip hooks file management
 #   --no-settings                Skip settings file creation
 #   --no-gitignore               Skip .gitignore update
 #   --no-defaults                Skip bundled default content (use only --content-repo)
@@ -35,7 +35,7 @@ set -euo pipefail
 WORKSPACE="${PWD}"
 TOOLS="claude"
 CREATE_FILE_MCP="true"
-CREATE_FILE_MCP_VSCODE="false"
+CREATE_FILE_HOOKS="true"
 CREATE_FILE_SETTING="true"
 UPDATE_GITIGNORE="true"
 INSTALL_DEFAULTS="true"
@@ -76,8 +76,8 @@ Usage: $SCRIPT_NAME [OPTIONS]
 Options:
   --workspace DIR         Target workspace directory (default: current dir)
   --tools LIST            Comma-separated tools: claude, copilot (default: claude)
-  --mcp-vscode            Create .vscode/mcp.json template
-  --no-mcp                Skip MCP config file creation
+  --no-mcp                Skip .mcp.json creation
+  --no-hooks              Skip hooks file management
   --no-settings           Skip settings file creation
   --no-gitignore          Skip .gitignore update
   --no-defaults           Skip bundled default content
@@ -121,7 +121,7 @@ run_interactive() {
     echo "  ─────────────────────────────────────────"
     _prompt       "tools (comma-separated: claude, copilot)" "${TOOLS}"          TOOLS
     _prompt_bool  "createFileMCP"                             "${CREATE_FILE_MCP}"      CREATE_FILE_MCP
-    _prompt_bool  "createFileMcpVscode"                       "${CREATE_FILE_MCP_VSCODE}" CREATE_FILE_MCP_VSCODE
+    _prompt_bool  "createFileHooks"                           "${CREATE_FILE_HOOKS}"    CREATE_FILE_HOOKS
     _prompt_bool  "createFileSetting"                         "${CREATE_FILE_SETTING}"  CREATE_FILE_SETTING
     _prompt_bool  "updateGitignore"                           "${UPDATE_GITIGNORE}"     UPDATE_GITIGNORE
     _prompt_bool  "installDefaults"                           "${INSTALL_DEFAULTS}"     INSTALL_DEFAULTS
@@ -161,8 +161,8 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --workspace)          WORKSPACE="$2";             shift 2 ;;
         --tools)              TOOLS="$2";                 shift 2 ;;
-        --mcp-vscode)         CREATE_FILE_MCP_VSCODE="true"; shift ;;
         --no-mcp)             CREATE_FILE_MCP="false";    shift ;;
+        --no-hooks)           CREATE_FILE_HOOKS="false";  shift ;;
         --no-settings)        CREATE_FILE_SETTING="false"; shift ;;
         --no-gitignore)       UPDATE_GITIGNORE="false";   shift ;;
         --no-defaults)        INSTALL_DEFAULTS="false";   shift ;;
@@ -235,7 +235,7 @@ EXTRA_ARGS=()
     --workspace               "${WORKSPACE}" \
     --tools                   "${TOOLS}" \
     --create-file-mcp         "${CREATE_FILE_MCP}" \
-    --create-file-mcp-vscode  "${CREATE_FILE_MCP_VSCODE}" \
+    --create-file-hooks       "${CREATE_FILE_HOOKS}" \
     --create-file-setting     "${CREATE_FILE_SETTING}" \
     --update-gitignore        "${UPDATE_GITIGNORE}" \
     --install-defaults        "${INSTALL_DEFAULTS}" \

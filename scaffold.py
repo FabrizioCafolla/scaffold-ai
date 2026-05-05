@@ -271,11 +271,70 @@ def _resolve_content_file(
     return bundled if bundled.exists() else None
 
 
+def _resolve_config_file(
+    feature_dir: pathlib.Path,
+    content_repo_path: pathlib.Path | None,
+    private_relative: str,
+    public_source: str,
+) -> pathlib.Path | None:
+    """Find a config file.
+
+    Checks content_repo_path / private_relative first (private override),
+    then falls back to feature_dir / public_source (bundled default).
+    """
+    if content_repo_path:
+        remote = content_repo_path / private_relative
+        if remote.exists():
+            return remote
+    bundled = feature_dir / public_source
+    return bundled if bundled.exists() else None
+
+
+def _apply_claude_hooks(ws: pathlib.Path, hooks_path: pathlib.Path) -> None:
+    """Merge hooks template into .claude/settings.json, replacing only the 'hooks' key."""
+    settings_path = ws / ".claude" / "settings.json"
+    if not settings_path.exists():
+        print(f"  [hooks] .claude/settings.json not found, skipping Claude hooks")
+        return
+
+    try:
+        hooks_data = json.loads(hooks_path.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  [WARN] failed to read hooks template {hooks_path}: {e}")
+        return
+
+    try:
+        settings = json.loads(settings_path.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  [WARN] failed to read .claude/settings.json: {e}")
+        return
+
+    settings["hooks"] = hooks_data
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
+    print(f"  [hooks] updated .claude/settings.json[hooks]")
+
+
+def _apply_copilot_hooks(ws: pathlib.Path, hooks_path: pathlib.Path, dest: str) -> None:
+    """Write Copilot hooks template to dest (always overwrite)."""
+    try:
+        hooks_data = hooks_path.read_text()
+        # Validate JSON before writing
+        json.loads(hooks_data)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  [WARN] failed to read hooks template {hooks_path}: {e}")
+        return
+
+    dst = ws / dest
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(hooks_data)
+    print(f"  [hooks] wrote {dst.relative_to(ws)}")
+
+
 def scaffold(
     workspace: str,
     tools: list[str],
     create_file_mcp: bool,
-    create_file_mcp_vscode: bool,
+    create_file_hooks: bool,
     create_file_setting: bool,
     update_gitignore: bool,
     install_defaults: bool,
@@ -298,7 +357,7 @@ def scaffold(
     enabled = ", ".join(tools) if tools else "none"
     flags = (
         f"mcp={'yes' if create_file_mcp else 'no'}  "
-        f"mcp-vscode={'yes' if create_file_mcp_vscode else 'no'}  "
+        f"hooks={'yes' if create_file_hooks else 'no'}  "
         f"settings={'yes' if create_file_setting else 'no'}  "
         f"gitignore={'yes' if update_gitignore else 'no'}  "
         f"defaults={'yes' if install_defaults else 'no'}"
@@ -381,13 +440,6 @@ def scaffold(
             if refs_src.exists():
                 shutil.copytree(refs_src, skill_dir / "references", dirs_exist_ok=True)
 
-        # --- MCP file ---
-        if create_file_mcp:
-            for ef in extra_files.get("mcp", []):
-                _copy_extra(feature_dir, ws, ef)
-                if ef.get("ignore", False):
-                    gitignore_entries.append(ef["dest"])
-
         # --- Settings files ---
         if create_file_setting:
             for ef in extra_files.get("settings", []):
@@ -395,20 +447,44 @@ def scaffold(
                 if ef.get("ignore", False):
                     gitignore_entries.append(ef["dest"])
 
+        # --- Hooks ---
+        if create_file_hooks:
+            hooks_cfg = tool_paths.get("hooks")
+            if hooks_cfg:
+                hooks_src = _resolve_config_file(
+                    feature_dir,
+                    content_repo_path,
+                    private_relative=f"hooks/{tool}.json",
+                    public_source=hooks_cfg["source"],
+                )
+                if hooks_src:
+                    if tool == "claude":
+                        _apply_claude_hooks(ws, hooks_src)
+                    else:
+                        dest = hooks_cfg.get("dest", f".{tool}/hooks.json")
+                        _apply_copilot_hooks(ws, hooks_src, dest)
+                else:
+                    print(f"  │  [WARN] missing hooks template for '{tool}'")
+
         print(f"  └─ [{tool.upper()}] done\n")
 
-    # --- VSCode MCP (not tool-specific) ---
-    if create_file_mcp_vscode:
-        vscode_mcp_src = feature_dir / "config" / "vscode" / "mcp.json"
-        vscode_mcp_dst = ws / ".vscode" / "mcp.json"
-        if vscode_mcp_dst.exists():
-            print(f"  [skip] .vscode/mcp.json  (already exists)")
-        elif vscode_mcp_src.exists():
-            vscode_mcp_dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(vscode_mcp_src, vscode_mcp_dst)
-            print(f"  [copy] config/vscode/mcp.json  →  .vscode/mcp.json")
+    # --- Shared MCP file (.mcp.json) ---
+    if create_file_mcp:
+        mcp_src = _resolve_config_file(
+            feature_dir,
+            content_repo_path,
+            private_relative="mcp.json",
+            public_source="config/mcp.json",
+        )
+        mcp_dst = ws / ".mcp.json"
+        if mcp_src:
+            if mcp_dst.exists():
+                print(f"  [skip] .mcp.json  (already exists)")
+            else:
+                shutil.copy2(mcp_src, mcp_dst)
+                print(f"  [copy] config/mcp.json  →  .mcp.json")
         else:
-            print(f"  [WARN] missing config/vscode/mcp.json template")
+            print(f"  [WARN] missing config/mcp.json template")
 
     if update_gitignore and gitignore_entries:
         _update_gitignore(ws, list(dict.fromkeys(gitignore_entries)))
@@ -437,8 +513,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--workspace", required=True, help="Target workspace directory")
     parser.add_argument("--tools", default="claude", help="Comma-separated tools to scaffold (e.g. claude,copilot)")
-    parser.add_argument("--create-file-mcp", default="true", help="Create MCP config file (true/false)")
-    parser.add_argument("--create-file-mcp-vscode", default="false", help="Create .vscode/mcp.json (true/false)")
+    parser.add_argument("--create-file-mcp", default="true", help="Create .mcp.json config file (true/false)")
+    parser.add_argument("--create-file-hooks", default="true", help="Create and manage hooks files (true/false)")
     parser.add_argument("--create-file-setting", default="true", help="Create settings files (true/false)")
     parser.add_argument("--update-gitignore", default="true", help="Add scaffold paths to .gitignore (true/false)")
     parser.add_argument("--install-defaults", default="true", help="Install bundled default content (true/false)")
@@ -460,7 +536,7 @@ if __name__ == "__main__":
         workspace=args.workspace,
         tools=_parse_tools(args.tools),
         create_file_mcp=_flag(args.create_file_mcp),
-        create_file_mcp_vscode=_flag(args.create_file_mcp_vscode),
+        create_file_hooks=_flag(args.create_file_hooks),
         create_file_setting=_flag(args.create_file_setting),
         update_gitignore=_flag(args.update_gitignore),
         install_defaults=_flag(args.install_defaults),

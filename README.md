@@ -50,7 +50,7 @@ Add the feature to your `.devcontainer/devcontainer.json`:
     "ghcr.io/fabriziocafolla/scaffold-ai:0": {
       "tools": "claude",
       "createFileMCP": true,
-      "createFileMcpVscode": false,
+      "createFileHooks": true,
       "createFileSetting": true,
       "updateGitignore": true,
       "installDefaults": true,
@@ -65,16 +65,16 @@ Assets are scaffolded automatically on first container create (`onCreateCommand`
 
 #### Options
 
-| Option                | Type    | Default  | Description                                                                      |
-| --------------------- | ------- | -------- | -------------------------------------------------------------------------------- |
-| `tools`               | string  | `claude` | Comma-separated tools to scaffold: `claude`, `copilot`                           |
-| `createFileMCP`       | boolean | `true`   | Copy MCP config template. Skipped if already exists                              |
-| `createFileMcpVscode` | boolean | `false`  | Copy `.vscode/mcp.json` template. Skipped if already exists                      |
-| `createFileSetting`   | boolean | `true`   | Copy settings templates. Skipped if already exist                                |
-| `updateGitignore`     | boolean | `true`   | Add scaffold-managed paths to `.gitignore`                                       |
-| `installDefaults`     | boolean | `true`   | Install bundled default agents and skills. Set `false` to use only `contentRepo` |
-| `contentRepo`         | string  | `""`     | GitHub repo URL with additional agents/skills (merged on top of defaults)        |
-| `contentRepoRef`      | string  | `main`   | Branch or tag of the content repo                                                |
+| Option              | Type    | Default  | Description                                                                                                                            |
+| ------------------- | ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `tools`             | string  | `claude` | Comma-separated tools to scaffold: `claude`, `copilot`                                                                                 |
+| `createFileMCP`     | boolean | `true`   | Create shared `.mcp.json` at workspace root. Skipped if already exists. Serves Claude, VS Code, and Copilot                           |
+| `createFileHooks`   | boolean | `true`   | Deploy and manage hooks files for active tools. Always updated on scaffold runs. Overridable via content repo                          |
+| `createFileSetting` | boolean | `true`   | Copy settings templates. Skipped if already exist                                                                                      |
+| `updateGitignore`   | boolean | `true`   | Add scaffold-managed paths to `.gitignore`                                                                                             |
+| `installDefaults`   | boolean | `true`   | Install bundled default agents and skills. Set `false` to use only `contentRepo`                                                       |
+| `contentRepo`       | string  | `""`     | GitHub repo URL with additional agents/skills (and optional hooks/mcp overrides) merged on top of defaults                            |
+| `contentRepoRef`    | string  | `main`   | Branch or tag of the content repo                                                                                                      |
 
 #### Private content repos
 
@@ -109,19 +109,19 @@ bash scaffold-ai.sh [OPTIONS]
 
 #### Options
 
-| Option                   | Default     | Description                                |
-| ------------------------ | ----------- | ------------------------------------------ |
-| `--workspace DIR`        | current dir | Target workspace directory                 |
-| `--tools LIST`           | `claude`    | Comma-separated tools: `claude`, `copilot` |
-| `--mcp-vscode`           |             | Create `.vscode/mcp.json` template         |
-| `--no-mcp`               |             | Skip MCP config file creation              |
-| `--no-settings`          |             | Skip settings file creation                |
-| `--no-gitignore`         |             | Skip `.gitignore` update                   |
-| `--no-defaults`          |             | Skip bundled default content               |
-| `--content-repo URL`     |             | GitHub repo with additional agents/skills  |
-| `--content-repo-ref REF` | `main`      | Branch or tag for content repo             |
-| `--ref BRANCH\|TAG`      | `main`      | scaffold-ai git ref to clone               |
-| `--interactive`          |             | Guided prompt mode                         |
+| Option                   | Default     | Description                                              |
+| ------------------------ | ----------- | -------------------------------------------------------- |
+| `--workspace DIR`        | current dir | Target workspace directory                               |
+| `--tools LIST`           | `claude`    | Comma-separated tools: `claude`, `copilot`               |
+| `--no-mcp`               |             | Skip `.mcp.json` creation                                |
+| `--no-hooks`             |             | Skip hooks file management                               |
+| `--no-settings`          |             | Skip settings file creation                              |
+| `--no-gitignore`         |             | Skip `.gitignore` update                                 |
+| `--no-defaults`          |             | Skip bundled default content                             |
+| `--content-repo URL`     |             | GitHub repo with additional agents, skills, hooks or mcp |
+| `--content-repo-ref REF` | `main`      | Branch or tag for content repo                           |
+| `--ref BRANCH\|TAG`      | `main`      | scaffold-ai git ref to clone                             |
+| `--interactive`          |             | Guided prompt mode                                       |
 
 **Requirements:** `git`, `python3 >= 3.9` with `venv` module (pyyaml is installed automatically in an isolated venv).
 
@@ -159,13 +159,17 @@ your-content-repo/
 ├── agents/
 │   ├── metadata.yml    # per-tool frontmatter for each agent
 │   └── my-agent.md     # agent content (no frontmatter)
-└── skills/
-    ├── metadata.yml    # per-tool frontmatter for each skill
-    └── my-skill/
-        └── SKILL.md    # skill content (no frontmatter)
+├── skills/
+│   ├── metadata.yml    # per-tool frontmatter for each skill
+│   └── my-skill/
+│       └── SKILL.md    # skill content (no frontmatter)
+├── hooks/              # optional: override default hook templates
+│   ├── claude.json     # replaces config/claude/hooks.json
+│   └── copilot.json    # replaces config/copilot/hooks.json
+└── mcp.json            # optional: override shared .mcp.json template
 ```
 
-You can include only `agents/`, only `skills/`, or both. Anything absent falls back to bundled defaults (unless `--no-defaults` / `installDefaults: false`).
+You can include any subset — anything absent falls back to bundled defaults (unless `--no-defaults` / `installDefaults: false`). Hooks and MCP overrides are full replacements, not merges.
 
 ---
 

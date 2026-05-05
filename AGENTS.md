@@ -7,7 +7,7 @@ scaffold-ai is a devcontainer feature and standalone CLI that scaffolds AI agent
 ```
 scaffold-ai/
 ├── content/                    # Tool-agnostic Markdown content
-│   ├── paths.yml               # Output paths per tool (copilot / claude / vscode)
+│   ├── paths.yml               # Output paths per tool (copilot / claude)
 │   ├── agents/
 │   │   ├── metadata.yml        # Per-tool frontmatter for each agent
 │   │   └── <key>.md            # Agent body (no frontmatter)
@@ -18,9 +18,14 @@ scaffold-ai/
 │   │       └── references/     # Optional reference docs
 │   └── prompts/                # Future use
 ├── config/                     # Per-tool config templates
-│   ├── claude/                 # mcp.json, settings.json, settings.local.json
-│   ├── copilot/                # config.json, mcp-config.json
-│   └── vscode/                 # mcp.json
+│   ├── mcp.json                # Shared .mcp.json template (Claude, VS Code, Copilot)
+│   ├── claude/
+│   │   ├── hooks.json          # Claude hooks template (always-managed)
+│   │   ├── settings.json       # Claude settings (copy-once)
+│   │   └── settings.local.json # Claude local settings (copy-once, gitignored)
+│   └── copilot/
+│       ├── hooks.json          # Copilot hooks template (always-managed)
+│       └── config.json         # Copilot config (copy-once)
 ├── scaffold.py                 # Main Python scaffolder
 ├── install.sh                  # Devcontainer install script
 ├── cli.sh                      # Standalone CLI (curl | bash usage)
@@ -137,40 +142,64 @@ skills:
 
 ## Content Repo Format
 
-Private or supplemental content repos must follow the same layout as `content/`:
+Private or supplemental content repos can contain:
 
 ```text
 your-content-repo/
 ├── agents/
 │   ├── metadata.yml    # per-tool frontmatter
 │   └── <key>.md        # agent body (no frontmatter)
-└── skills/
-    ├── metadata.yml    # per-tool frontmatter
-    └── <skill-key>/
-        └── SKILL.md    # skill body (no frontmatter)
+├── skills/
+│   ├── metadata.yml    # per-tool frontmatter
+│   └── <skill-key>/
+│       └── SKILL.md    # skill body (no frontmatter)
+├── hooks/              # optional config overrides
+│   ├── claude.json     # full replacement for config/claude/hooks.json
+│   └── copilot.json    # full replacement for config/copilot/hooks.json
+└── mcp.json            # optional: full replacement for config/mcp.json
 ```
 
 Key rules:
 
-- No frontmatter in `.md` files frontmatter comes exclusively from `metadata.yml`
+- No frontmatter in `.md` files — frontmatter comes exclusively from `metadata.yml`
 - `metadata.yml` must start with a `default:` block followed by an `agents:` or `skills:` key
 - Same key in both repos → content repo wins; absent key → falls back to bundled defaults
+- `hooks/` and `mcp.json` are full replacements, not merged with defaults
 
 ## Config Templates
 
-Files under `config/` are copied to the workspace when the corresponding feature option is enabled:
+Files under `config/` are deployed to the workspace based on the active options:
 
-| Source                              | Destination                   | Option                |
-| ----------------------------------- | ----------------------------- | --------------------- |
-| `config/claude/mcp.json`            | `.mcp.json`                   | `createFileMCP`       |
-| `config/claude/settings.json`       | `.claude/settings.json`       | `createFileSetting`   |
-| `config/claude/settings.local.json` | `.claude/settings.local.json` | `createFileSetting`   |
-| `config/copilot/mcp-config.json`    | `.copilot/mcp-config.json`    | always                |
-| `config/vscode/mcp.json`            | `.vscode/mcp.json`            | `createFileMcpVscode` |
+| Source                              | Destination                   | Option              | Behavior       |
+| ----------------------------------- | ----------------------------- | ------------------- | -------------- |
+| `config/mcp.json`                   | `.mcp.json`                   | `createFileMCP`     | copy-once      |
+| `config/claude/hooks.json`          | `.claude/settings.json[hooks]`| `createFileHooks`   | always-managed |
+| `config/claude/settings.json`       | `.claude/settings.json`       | `createFileSetting` | copy-once      |
+| `config/claude/settings.local.json` | `.claude/settings.local.json` | `createFileSetting` | copy-once      |
+| `config/copilot/hooks.json`         | `.github/hooks/hooks.json`    | `createFileHooks`   | always-managed |
+| `config/copilot/config.json`        | `.copilot/config.json`        | `createFileSetting` | copy-once      |
+
+**copy-once**: file is created on first scaffold run; skipped if destination already exists (preserves user edits).
+
+**always-managed**: file is written on every scaffold run regardless of whether it exists. Hooks are scaffold-owned — customize them via the content repo override, not by editing the deployed file directly.
+
+### Content repo overrides
+
+A private content repo can override config templates by placing files at these paths:
+
+| Content repo path    | Overrides                   |
+| -------------------- | --------------------------- |
+| `mcp.json`           | `config/mcp.json`           |
+| `hooks/claude.json`  | `config/claude/hooks.json`  |
+| `hooks/copilot.json` | `config/copilot/hooks.json` |
 
 ## Local Testing
 
 ```bash
-make test    # scaffold into ./test/ with all flags enabled
-make clean   # remove ./test/
+just test               # scaffold Claude only into ./test/
+just test-both          # scaffold Claude + Copilot with hooks
+just test-hooks         # verify hooks override from a simulated private repo
+just test-content-repo  # verify private skills from a simulated content repo
+just test-idempotent    # run twice — second run must be a no-op
+just clean              # remove ./test/
 ```

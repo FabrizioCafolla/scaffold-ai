@@ -1,6 +1,6 @@
 {
   "id": "scaffold-ai",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "name": "Scaffold AI",
   "description": "Scaffolds AI agent and skill assets (Claude, Copilot) into the workspace. Works at container create time and skips subsequent runs when content has not changed.",
   "documentationURL": "https://containers.dev/features",
@@ -14,12 +14,12 @@
     "createFileMCP": {
       "type": "boolean",
       "default": true,
-      "description": "Copy MCP config template to workspace root for AI models selected. Skipped if already exists."
+      "description": "Copy shared .mcp.json template to workspace root. Skipped if already exists. Serves Claude, VS Code, and Copilot."
     },
-    "createFileMcpVscode": {
+    "createFileHooks": {
       "type": "boolean",
-      "default": false,
-      "description": "Copy .vscode/mcp.json template to workspace. Skipped if already exists."
+      "default": true,
+      "description": "Deploy and manage hooks files for active tools. Always overwritten on scaffold runs. Claude hooks merged into .claude/settings.json; Copilot hooks written to .github/hooks/hooks.json."
     },
     "createFileSetting": {
       "type": "boolean",

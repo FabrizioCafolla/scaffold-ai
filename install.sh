@@ -5,7 +5,7 @@ FEATURE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSETS_DIR="/usr/local/share/scaffold-ai"
 TOOLS="${TOOLS:-claude}"
 CREATE_FILE_MCP="${CREATEFILEMCP:-true}"
-CREATE_FILE_MCP_VSCODE="${CREATEFILEMCPVSCODE:-false}"
+CREATE_FILE_HOOKS="${CREATEFILEHOOKS:-true}"
 CREATE_FILE_SETTING="${CREATEFILESETTING:-true}"
 UPDATE_GITIGNORE="${UPDATEGITIGNORE:-true}"
 INSTALL_DEFAULTS="${INSTALLDEFAULTS:-true}"
@@ -95,7 +95,7 @@ _clone_content_repo() {
     echo "[ERROR] For private repos, set the GITHUB_TOKEN secret in your devcontainer." >&2
     exit 1
   fi
-  git -C "${dest}" sparse-checkout set agents skills agents.scaffold-ai.md 2>/dev/null || true
+  git -C "${dest}" sparse-checkout set agents skills hooks mcp.json agents.scaffold-ai.md 2>/dev/null || true
   echo "[OK] Content repo cloned (ref: ${ref})"
 }
 HELPER
@@ -143,7 +143,7 @@ fi
   --workspace "\${WORKSPACE}" \\
   --tools "${TOOLS}" \\
   --create-file-mcp "${CREATE_FILE_MCP}" \\
-  --create-file-mcp-vscode "${CREATE_FILE_MCP_VSCODE}" \\
+  --create-file-hooks "${CREATE_FILE_HOOKS}" \\
   --create-file-setting "${CREATE_FILE_SETTING}" \\
   --update-gitignore "${UPDATE_GITIGNORE}" \\
   --install-defaults "${INSTALL_DEFAULTS}" \\
@@ -184,7 +184,7 @@ rm -f "\${WORKSPACE}/.scaffold-ai.lock"
   --workspace "\${WORKSPACE}" \\
   --tools "${TOOLS}" \\
   --create-file-mcp "${CREATE_FILE_MCP}" \\
-  --create-file-mcp-vscode "${CREATE_FILE_MCP_VSCODE}" \\
+  --create-file-hooks "${CREATE_FILE_HOOKS}" \\
   --create-file-setting "${CREATE_FILE_SETTING}" \\
   --update-gitignore "${UPDATE_GITIGNORE}" \\
   --install-defaults "${INSTALL_DEFAULTS}" \\
