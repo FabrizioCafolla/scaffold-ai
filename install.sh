@@ -11,7 +11,7 @@ UPDATE_GITIGNORE="${UPDATEGITIGNORE:-true}"
 INSTALL_DEFAULTS="${INSTALLDEFAULTS:-true}"
 CONTENT_REPO="${CONTENTREPO:-}"
 CONTENT_REPO_REF="${CONTENTREPOREF:-main}"
-INSTALL_RTK="${INSTALLRTK:-false}"
+INSTALL_RTK="${INSTALLRTK:-true}"
 
 # ---------------------------------------------------------------------------
 # Verify Python 3.9+ with venv support.
@@ -45,9 +45,9 @@ rm -rf "${ASSETS_DIR}"
 cp -R "${FEATURE_DIR}" "${ASSETS_DIR}"
 
 # Create isolated venv and install pyyaml inside it.
-# --copies avoids symlinking the interpreter from paths the runtime non-root
-# user may not be able to traverse (e.g. /root/.local).
-python3 -m venv --copies "${ASSETS_DIR}/venv"
+# NOTE: the venv interpreter symlinks the build-time python3 — the base image
+# must keep it in a path traversable by the runtime non-root user (not /root).
+python3 -m venv "${ASSETS_DIR}/venv"
 "${ASSETS_DIR}/venv/bin/pip" install --quiet pyyaml \
   || { echo "[ERROR] Failed to install pyyaml in venv."; exit 1; }
 chmod -R a+rX "${ASSETS_DIR}"

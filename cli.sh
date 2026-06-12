@@ -24,6 +24,9 @@
 #   --content-repo URL           GitHub repo URL with additional agents/skills
 #   --content-repo-ref REF       Branch or tag of the content repo (default: main)
 #   --ref BRANCH|TAG             scaffold-ai git ref to clone (default: main)
+#   --local-path DIR             Use a local scaffold-ai checkout instead of cloning (dev/test, implies --force)
+#   --no-rtk                     Skip RTK install and Claude PreToolUse hook (installed by default, mirrors devcontainer)
+#   --force                      Ignore the .scaffold-ai.lock hash and re-scaffold
 #   --interactive                Guided prompt mode (mirrors devcontainer options)
 #   -h, --help                   Show this help
 # =============================================================================
@@ -42,6 +45,9 @@ INSTALL_DEFAULTS="true"
 CONTENT_REPO=""
 CONTENT_REPO_REF="main"
 GIT_REF="main"
+LOCAL_PATH=""
+INSTALL_RTK="true"
+FORCE="false"
 INTERACTIVE="false"
 readonly REPO_URL="https://github.com/FabrizioCafolla/scaffold-ai.git"
 SCRIPT_NAME="$(basename "$0")"
@@ -84,6 +90,9 @@ Options:
   --content-repo URL      GitHub repo URL with additional agents/skills
   --content-repo-ref REF  Branch or tag for content repo (default: main)
   --ref BRANCH|TAG        scaffold-ai git ref to clone (default: main)
+  --local-path DIR        Use a local scaffold-ai checkout instead of cloning (dev/test, implies --force)
+  --no-rtk                Skip RTK install and Claude hook (installed by default, mirrors devcontainer)
+  --force                 Ignore the .scaffold-ai.lock hash and re-scaffold
   --interactive           Guided prompt mode
   -h, --help              Show this help
 EOF
@@ -125,6 +134,7 @@ run_interactive() {
     _prompt_bool  "createFileSetting"                         "${CREATE_FILE_SETTING}"  CREATE_FILE_SETTING
     _prompt_bool  "updateGitignore"                           "${UPDATE_GITIGNORE}"     UPDATE_GITIGNORE
     _prompt_bool  "installDefaults"                           "${INSTALL_DEFAULTS}"     INSTALL_DEFAULTS
+    _prompt_bool  "installRtk"                                "${INSTALL_RTK}"          INSTALL_RTK
     _prompt       "contentRepo (GitHub URL, leave blank to skip)" "" CONTENT_REPO
     if [[ -n "${CONTENT_REPO}" ]]; then
         _prompt   "contentRepoRef" "${CONTENT_REPO_REF}" CONTENT_REPO_REF
@@ -169,6 +179,9 @@ while [[ $# -gt 0 ]]; do
         --content-repo)       CONTENT_REPO="$2";          shift 2 ;;
         --content-repo-ref)   CONTENT_REPO_REF="$2";      shift 2 ;;
         --ref)                GIT_REF="$2";               shift 2 ;;
+        --local-path)         LOCAL_PATH="$2";            shift 2 ;;
+        --no-rtk)             INSTALL_RTK="false";        shift ;;
+        --force)              FORCE="true";               shift ;;
         --interactive)        INTERACTIVE="true";          shift ;;
         -h|--help)            usage ;;
         *) die "Unknown option: $1. Use -h for help." ;;
@@ -211,8 +224,63 @@ if ! python3 -c 'import yaml' 2>/dev/null; then
     PYTHON="${TEMP_DIR}/venv/bin/python3"
 fi
 
-git clone --quiet --depth 1 --branch "${GIT_REF}" "${REPO_URL}" "${TEMP_DIR}/scaffold-ai" \
-    || die "Failed to clone ${REPO_URL}. Check your internet connection."
+if [[ -n "${LOCAL_PATH}" ]]; then
+    [[ -f "${LOCAL_PATH}/scaffold.py" ]] \
+        || die "--local-path '${LOCAL_PATH}' is not a scaffold-ai checkout (scaffold.py not found)."
+    info "Using local scaffold-ai checkout: ${LOCAL_PATH}"
+    cp -R "${LOCAL_PATH}" "${TEMP_DIR}/scaffold-ai"
+else
+    git clone --quiet --depth 1 --branch "${GIT_REF}" "${REPO_URL}" "${TEMP_DIR}/scaffold-ai" \
+        || die "Failed to clone ${REPO_URL}. Check your internet connection."
+fi
+
+# ---------------------------------------------------------------------------
+# RTK (optional) — install binary and register the Claude PreToolUse hook in
+# the staged hooks template, so the scaffold merges it into .claude/settings.json
+# ---------------------------------------------------------------------------
+if [[ "${INSTALL_RTK}" == "true" ]]; then
+    if ! command -v rtk &>/dev/null; then
+        info "Installing RTK..."
+        case "$(uname -m)" in
+            x86_64 | amd64) RTK_ARCH="x86_64" ;;
+            aarch64 | arm64) RTK_ARCH="aarch64" ;;
+            *) die "RTK: unsupported arch $(uname -m)" ;;
+        esac
+        RTK_BIN_DIR="/usr/local/bin"
+        [[ -w "${RTK_BIN_DIR}" ]] || RTK_BIN_DIR="${HOME}/.local/bin"
+        mkdir -p "${RTK_BIN_DIR}"
+        curl -fsSL \
+            "https://github.com/rtk-ai/rtk/releases/latest/download/rtk-${RTK_ARCH}-unknown-linux-gnu.tar.gz" \
+            | tar xz -C "${RTK_BIN_DIR}" rtk \
+            || die "Failed to install RTK."
+        chmod 755 "${RTK_BIN_DIR}/rtk"
+        info "RTK installed to ${RTK_BIN_DIR}/rtk"
+    fi
+
+    RTK_HOOKS_FILE="${TEMP_DIR}/scaffold-ai/config/claude/hooks.json" "${PYTHON}" - <<'PYEOF'
+import json, os
+
+path = os.environ["RTK_HOOKS_FILE"]
+with open(path) as f:
+    hooks = json.load(f)
+
+entry = {
+    "matcher": "Bash",
+    "hooks": [{"type": "command", "command": "rtk hook claude"}],
+}
+pre = hooks.setdefault("PreToolUse", [])
+if not any(
+    h.get("command") == "rtk hook claude"
+    for item in pre
+    for h in item.get("hooks", [])
+):
+    pre.append(entry)
+    with open(path, "w") as f:
+        json.dump(hooks, f, indent=2)
+        f.write("\n")
+    print("  RTK PreToolUse hook added to Claude hooks template")
+PYEOF
+fi
 
 # ---------------------------------------------------------------------------
 # Content repo clone (if requested)
@@ -227,6 +295,15 @@ fi
 # ---------------------------------------------------------------------------
 # Run scaffold
 # ---------------------------------------------------------------------------
+# The lock hash is identity-based (scaffold-ai HEAD SHA + content repo SHA),
+# so uncommitted local changes never alter it: a local checkout always forces.
+if [[ "${FORCE}" == "true" || -n "${LOCAL_PATH}" ]]; then
+    if [[ -f "${WORKSPACE}/.scaffold-ai.lock" ]]; then
+        info "Forcing re-scaffold (removing .scaffold-ai.lock)"
+        rm -f "${WORKSPACE}/.scaffold-ai.lock"
+    fi
+fi
+
 echo ""
 EXTRA_ARGS=()
 [[ -n "${CONTENT_REPO_LOCAL_PATH}" ]] && EXTRA_ARGS+=(--content-repo-local-path "${CONTENT_REPO_LOCAL_PATH}")

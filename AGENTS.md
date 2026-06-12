@@ -20,9 +20,10 @@ scaffold-ai/
 ├── config/                     # Per-tool config templates
 │   ├── mcp.json                # Shared .mcp.json template (Claude, VS Code, Copilot)
 │   ├── claude/
-│   │   ├── hooks.json          # Claude hooks template (always-managed)
-│   │   ├── settings.json       # Claude settings (copy-once)
-│   │   └── settings.local.json # Claude local settings (copy-once, gitignored)
+│   │   ├── hooks.json          # Claude hooks template (always-managed; installRtk injects the rtk hook here)
+│   │   ├── settings.json       # Claude settings (copy-once, includes statusLine)
+│   │   ├── settings.local.json # Claude local settings (copy-once, gitignored)
+│   │   └── statusline.sh       # Claude statusline (copy-once → .claude/statusline.sh)
 │   └── copilot/
 │       ├── hooks.json          # Copilot hooks template (always-managed)
 │       └── config.json         # Copilot config (copy-once)
@@ -44,7 +45,8 @@ scaffold-ai/
 **CLI path:**
 
 1. `cli.sh` is fetched via `curl | bash`
-2. It clones scaffold-ai (or the specified `--ref`), optionally clones a `--content-repo`, then runs `scaffold.py` directly
+2. It clones scaffold-ai (or the specified `--ref`; with `--local-path DIR` it uses a local checkout instead — required to test uncommitted changes, since the default always pulls from GitHub), optionally clones a `--content-repo`, then runs `scaffold.py` directly
+3. By default it also installs the RTK binary and injects the `rtk hook claude` PreToolUse entry into the staged Claude hooks template before scaffolding (opt out with `--no-rtk`; mirrors the devcontainer `installRtk` default)
 
 **scaffold.py reads:**
 
@@ -176,6 +178,7 @@ Files under `config/` are deployed to the workspace based on the active options:
 | `config/claude/hooks.json`          | `.claude/settings.json[hooks]`| `createFileHooks`   | always-managed |
 | `config/claude/settings.json`       | `.claude/settings.json`       | `createFileSetting` | copy-once      |
 | `config/claude/settings.local.json` | `.claude/settings.local.json` | `createFileSetting` | copy-once      |
+| `config/claude/statusline.sh`       | `.claude/statusline.sh`       | `createFileSetting` | copy-once      |
 | `config/copilot/hooks.json`         | `.github/hooks/hooks.json`    | `createFileHooks`   | always-managed |
 | `config/copilot/config.json`        | `.copilot/config.json`        | `createFileSetting` | copy-once      |
 
