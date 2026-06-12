@@ -73,8 +73,17 @@ Assets are scaffolded automatically on first container create (`onCreateCommand`
 | `createFileSetting` | boolean | `true`   | Copy settings templates. Skipped if already exist                                                                                      |
 | `updateGitignore`   | boolean | `true`   | Add scaffold-managed paths to `.gitignore`                                                                                             |
 | `installDefaults`   | boolean | `true`   | Install bundled default agents and skills. Set `false` to use only `contentRepo`                                                       |
+| `installRtk`        | boolean | `false`  | Install [RTK](https://github.com/rtk-ai/rtk) and register its Claude Code `PreToolUse` hook in the scaffolded hooks template           |
 | `contentRepo`       | string  | `""`     | GitHub repo URL with additional agents/skills (and optional hooks/mcp overrides) merged on top of defaults                            |
 | `contentRepoRef`    | string  | `main`   | Branch or tag of the content repo                                                                                                      |
+
+#### Claude Code usability extras
+
+Scaffolded automatically when `claude` is in `tools`:
+
+- **Statusline** (`.claude/statusline.sh` + `statusLine` in the `settings.json` template): model, directory, git branch, context window % with color-coded bar, token counts, session cost (API billing only — hidden on Pro/Max plans where `rate_limits` is present), lines added/removed, 5-hour rate limit, and token-saving tool indicators (`⚡rtk` / `🪨caveman`, green = active, dim = installed). Requires `jq` in the container; degrades to a minimal line without it. Skipped if the workspace already has `.claude/statusline.sh` / `settings.json`.
+- **Caveman skill** ([upstream](https://github.com/JuliusBrussee/caveman)): bundled in the default skills, deployed to `.claude/skills/caveman`. Compresses Claude's prose replies (~65% of output tokens). Activate per session with `/caveman` (`lite|full|ultra`); disable with "stop caveman". Refresh the bundled copy from upstream with `just update-caveman`.
+- **RTK** (`installRtk: true`): installs the binary to `/usr/local/bin` and injects the `PreToolUse` hook into the Claude hooks template, so every scaffold run merges it into `.claude/settings.json`. Bash commands are then transparently rewritten to token-compressed `rtk` equivalents (60-90% savings on `git status`, test runners, `find`, …). Check savings with `rtk gain`.
 
 #### Private content repos
 

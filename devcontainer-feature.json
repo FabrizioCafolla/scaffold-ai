@@ -1,6 +1,6 @@
 {
   "id": "scaffold-ai",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "name": "Scaffold AI",
   "description": "Scaffolds AI agent and skill assets (Claude, Copilot) into the workspace. Works at container create time and skips subsequent runs when content has not changed.",
   "documentationURL": "https://containers.dev/features",
@@ -35,6 +35,11 @@
       "type": "boolean",
       "default": true,
       "description": "Install bundled default agents and skills from scaffold-ai. Set to false to use only contentRepo content."
+    },
+    "installRtk": {
+      "type": "boolean",
+      "default": false,
+      "description": "Install RTK (Rust Token Killer) and register its Claude Code PreToolUse hook in the scaffolded hooks template. Bash commands are transparently rewritten to token-compressed rtk equivalents (60-90% savings)."
     },
     "contentRepo": {
       "type": "string",

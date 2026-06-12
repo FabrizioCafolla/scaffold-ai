@@ -11,6 +11,7 @@ UPDATE_GITIGNORE="${UPDATEGITIGNORE:-true}"
 INSTALL_DEFAULTS="${INSTALLDEFAULTS:-true}"
 CONTENT_REPO="${CONTENTREPO:-}"
 CONTENT_REPO_REF="${CONTENTREPOREF:-main}"
+INSTALL_RTK="${INSTALLRTK:-false}"
 
 # ---------------------------------------------------------------------------
 # Verify Python 3.9+ with venv support.
@@ -43,11 +44,72 @@ echo "[OK] Python ${PY_VERSION} found"
 rm -rf "${ASSETS_DIR}"
 cp -R "${FEATURE_DIR}" "${ASSETS_DIR}"
 
-# Create isolated venv and install pyyaml inside it
-python3 -m venv "${ASSETS_DIR}/venv"
+# Create isolated venv and install pyyaml inside it.
+# --copies avoids symlinking the interpreter from paths the runtime non-root
+# user may not be able to traverse (e.g. /root/.local).
+python3 -m venv --copies "${ASSETS_DIR}/venv"
 "${ASSETS_DIR}/venv/bin/pip" install --quiet pyyaml \
   || { echo "[ERROR] Failed to install pyyaml in venv."; exit 1; }
+chmod -R a+rX "${ASSETS_DIR}"
 echo "[OK] pyyaml installed in isolated venv"
+
+# ---------------------------------------------------------------------------
+# RTK (optional) — token-saving CLI proxy for Claude Code
+#
+# Installs the binary to /usr/local/bin and registers the PreToolUse hook in
+# the staged Claude hooks template, so scaffold runs merge it into the
+# workspace .claude/settings.json.
+# ---------------------------------------------------------------------------
+if [[ "${INSTALL_RTK}" == "true" ]]; then
+  case "$(uname -m)" in
+    x86_64 | amd64) RTK_ARCH="x86_64" ;;
+    aarch64 | arm64) RTK_ARCH="aarch64" ;;
+    *)
+      echo "[WARN] RTK: unsupported arch $(uname -m), skipping"
+      RTK_ARCH=""
+      ;;
+  esac
+
+  if [[ -n "${RTK_ARCH}" ]]; then
+    if curl -fsSL \
+      "https://github.com/rtk-ai/rtk/releases/latest/download/rtk-${RTK_ARCH}-unknown-linux-gnu.tar.gz" \
+      -o /tmp/rtk.tar.gz \
+      && tar xzf /tmp/rtk.tar.gz -C /usr/local/bin rtk \
+      && chmod 755 /usr/local/bin/rtk; then
+      rm -f /tmp/rtk.tar.gz
+      echo "[OK] RTK installed: $(rtk --version)"
+
+      RTK_HOOKS_FILE="${ASSETS_DIR}/config/claude/hooks.json" python3 - <<'PYEOF'
+import json, os
+
+path = os.environ["RTK_HOOKS_FILE"]
+with open(path) as f:
+    hooks = json.load(f)
+
+entry = {
+    "matcher": "Bash",
+    "hooks": [{"type": "command", "command": "rtk hook claude"}],
+}
+pre = hooks.setdefault("PreToolUse", [])
+if not any(
+    h.get("command") == "rtk hook claude"
+    for item in pre
+    for h in item.get("hooks", [])
+):
+    pre.append(entry)
+    with open(path, "w") as f:
+        json.dump(hooks, f, indent=2)
+        f.write("\n")
+    print("[OK] RTK PreToolUse hook added to Claude hooks template")
+else:
+    print("[OK] RTK hook already present in hooks template")
+PYEOF
+    else
+      echo "[WARN] RTK install failed, continuing without it"
+      rm -f /tmp/rtk.tar.gz
+    fi
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # Shared helpers embedded into both wrapper scripts at install time.

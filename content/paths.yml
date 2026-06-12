@@ -34,5 +34,8 @@ claude:
       - source: config/claude/settings.local.json
         dest: .claude/settings.local.json
         ignore: true
+      - source: config/claude/statusline.sh
+        dest: .claude/statusline.sh
+        ignore: false
   hooks:
     source: config/claude/hooks.json

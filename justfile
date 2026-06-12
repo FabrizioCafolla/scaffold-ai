@@ -126,3 +126,16 @@ test-content-repo: clean
 clean:
     @echo "==> Removing test workspace..."
     rm -rf {{workspace}}
+
+caveman_upstream := "https://raw.githubusercontent.com/JuliusBrussee/caveman/main/skills/caveman/SKILL.md"
+
+# Refresh the bundled caveman skill body from the upstream repo (frontmatter stripped — scaffold generates it from metadata.yml)
+update-caveman:
+    @echo "==> Fetching caveman skill from upstream..."
+    curl -fsSL {{caveman_upstream}} \
+        | awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' \
+        | sed '/./,$!d' > content/skills/caveman/SKILL.md
+    @test -s content/skills/caveman/SKILL.md \
+        || { echo "[ERROR] Downloaded skill body is empty, check upstream layout"; exit 1; }
+    @echo "==> Updated content/skills/caveman/SKILL.md"
+    @git diff --stat -- content/skills/caveman/SKILL.md
