@@ -1,6 +1,6 @@
 #!/bin/bash
 # Claude Code status line — model, dir, git, context window, cost, rate limits,
-# token-saving tool indicators (rtk, caveman).
+# token-saving tool indicators (rtk, headroom, caveman).
 # Receives session JSON on stdin (see https://code.claude.com/docs/en/statusline).
 # Requires: jq (degrades to a minimal line without it)
 
@@ -55,6 +55,17 @@ if command -v rtk >/dev/null 2>&1; then
     fi
   done
   tools+=" ${rtk_state}"
+fi
+
+# Headroom is active when the session routes through its proxy — i.e. the
+# inherited ANTHROPIC_BASE_URL points at a local Headroom endpoint (set by
+# `headroom wrap claude` or `headroom proxy` + env). Dim when only installed.
+if command -v headroom >/dev/null 2>&1; then
+  hr_state="${DIM}🧠headroom·off${RESET}"
+  if [[ "${ANTHROPIC_BASE_URL:-}" == *"localhost"* || "${ANTHROPIC_BASE_URL:-}" == *"127.0.0.1"* ]]; then
+    hr_state="${GREEN}🧠headroom${RESET}"
+  fi
+  tools+=" ${hr_state}"
 fi
 
 # Caveman: skill state is per-session, so read the session transcript — active

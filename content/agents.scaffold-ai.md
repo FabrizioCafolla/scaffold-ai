@@ -4,6 +4,14 @@
 
 **Generated files must never be edited directly.** On the next scaffold run (container restart or `scaffold-ai-cmd`) they are fully regenerated — any manual change is lost. To change a skill or agent: edit the source in the content repo, not the output. Hooks are also scaffold-managed: customize them via the content repo override.
 
+### Token-saving harness
+
+scaffold-ai can provision three token-saving layers, each acting at a different point:
+
+- **RTK** (`installRtk`, default on) — a `PreToolUse` hook that transparently rewrites Bash commands (`git status` → `rtk git status`) to compress *tool output* before it enters context. Automatic, no action needed.
+- **Caveman** (`/caveman` skill) — compresses *Claude's own output* into terse responses. Activate with `/caveman`, stop with `stop caveman`.
+- **Headroom** (`installHeadroom`, installed by default) — compresses the *request payload* at the API boundary. Installed but **not a hook and not auto-active**: it is the possible solution for very large contexts / RAG that RTK does not cover. Activate per-session with `headroom wrap claude` (it starts a proxy and routes the session through it). While active it overlaps RTK on the input side — prefer one or the other rather than stacking both.
+
 ### Setup
 
 **Devcontainer** (`devcontainer.json`):

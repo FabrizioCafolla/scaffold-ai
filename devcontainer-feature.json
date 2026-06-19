@@ -1,6 +1,6 @@
 {
   "id": "scaffold-ai",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "name": "Scaffold AI",
   "description": "Scaffolds AI agent and skill assets (Claude, Copilot) into the workspace. Works at container create time and skips subsequent runs when content has not changed.",
   "documentationURL": "https://containers.dev/features",
@@ -40,6 +40,11 @@
       "type": "boolean",
       "default": true,
       "description": "Install RTK (Rust Token Killer) and register its Claude Code PreToolUse hook in the scaffolded hooks template. Bash commands are transparently rewritten to token-compressed rtk equivalents (60-90% savings)."
+    },
+    "installHeadroom": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install the Headroom CLI (Python, via uv) for request-level context compression. Installed by default but NOT a hook and NOT auto-active: activate per-session with `headroom wrap claude`. RTK stays the active input-side layer; only `headroom wrap` stacks the two."
     },
     "contentRepo": {
       "type": "string",

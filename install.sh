@@ -12,6 +12,7 @@ INSTALL_DEFAULTS="${INSTALLDEFAULTS:-true}"
 CONTENT_REPO="${CONTENTREPO:-}"
 CONTENT_REPO_REF="${CONTENTREPOREF:-main}"
 INSTALL_RTK="${INSTALLRTK:-true}"
+INSTALL_HEADROOM="${INSTALLHEADROOM:-true}"
 
 # ---------------------------------------------------------------------------
 # Verify Python 3.9+ with venv support.
@@ -108,6 +109,33 @@ PYEOF
       echo "[WARN] RTK install failed, continuing without it"
       rm -f /tmp/rtk.tar.gz
     fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Headroom (installed by default) — request-level context compression CLI
+#
+# Python tool installed via uv (binary lands in ~/.local/bin). Unlike RTK it is
+# NOT a hook and NOT auto-active: it wraps the session launch
+# (`headroom wrap claude`), so there is nothing to register in the hooks
+# template. RTK stays the active input-side layer; Headroom only stacks on top
+# when the user explicitly runs `headroom wrap`.
+#
+# The [proxy] extra (~430MB) is all `wrap`/`proxy` need. The [all] extra adds
+# the ML/eval/image stack (~5.5GB) and is only for local model training or
+# benchmarking — escalate on demand: uv tool install --reinstall "headroom-ai[all]".
+# ---------------------------------------------------------------------------
+if [[ "${INSTALL_HEADROOM}" == "true" ]]; then
+  if command -v headroom &>/dev/null; then
+    echo "[OK] Headroom already installed: $(headroom --version 2>/dev/null || echo 'unknown version') (inactive until 'headroom wrap claude')"
+  elif command -v uv &>/dev/null; then
+    if uv tool install "headroom-ai[proxy]"; then
+      echo "[OK] Headroom installed: $(headroom --version 2>/dev/null || echo 'unknown version') (inactive until 'headroom wrap claude')"
+    else
+      echo "[WARN] Headroom install failed, continuing without it"
+    fi
+  else
+    echo "[WARN] Headroom requires uv (not found), skipping"
   fi
 fi
 

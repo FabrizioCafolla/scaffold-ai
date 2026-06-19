@@ -26,6 +26,7 @@
       "Bash(mkdir *)",
       "Bash(mv *)",
       "Bash(just *)",
+      "Bash(headroom *)",
       "Bash(git status*)",
       "Bash(git diff*)",
       "Bash(git log*)",

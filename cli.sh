@@ -26,6 +26,7 @@
 #   --ref BRANCH|TAG             scaffold-ai git ref to clone (default: main)
 #   --local-path DIR             Use a local scaffold-ai checkout instead of cloning (dev/test, implies --force)
 #   --no-rtk                     Skip RTK install and Claude PreToolUse hook (installed by default, mirrors devcontainer)
+#   --no-headroom                Skip the Headroom CLI install (installed by default; activate per-session with 'headroom wrap claude')
 #   --force                      Ignore the .scaffold-ai.lock hash and re-scaffold
 #   --interactive                Guided prompt mode (mirrors devcontainer options)
 #   -h, --help                   Show this help
@@ -47,6 +48,7 @@ CONTENT_REPO_REF="main"
 GIT_REF="main"
 LOCAL_PATH=""
 INSTALL_RTK="true"
+INSTALL_HEADROOM="true"
 FORCE="false"
 INTERACTIVE="false"
 readonly REPO_URL="https://github.com/FabrizioCafolla/scaffold-ai.git"
@@ -92,6 +94,7 @@ Options:
   --ref BRANCH|TAG        scaffold-ai git ref to clone (default: main)
   --local-path DIR        Use a local scaffold-ai checkout instead of cloning (dev/test, implies --force)
   --no-rtk                Skip RTK install and Claude hook (installed by default, mirrors devcontainer)
+  --no-headroom           Skip the Headroom CLI install (installed by default; activate per-session with 'headroom wrap claude')
   --force                 Ignore the .scaffold-ai.lock hash and re-scaffold
   --interactive           Guided prompt mode
   -h, --help              Show this help
@@ -135,6 +138,7 @@ run_interactive() {
     _prompt_bool  "updateGitignore"                           "${UPDATE_GITIGNORE}"     UPDATE_GITIGNORE
     _prompt_bool  "installDefaults"                           "${INSTALL_DEFAULTS}"     INSTALL_DEFAULTS
     _prompt_bool  "installRtk"                                "${INSTALL_RTK}"          INSTALL_RTK
+    _prompt_bool  "installHeadroom"                           "${INSTALL_HEADROOM}"     INSTALL_HEADROOM
     _prompt       "contentRepo (GitHub URL, leave blank to skip)" "" CONTENT_REPO
     if [[ -n "${CONTENT_REPO}" ]]; then
         _prompt   "contentRepoRef" "${CONTENT_REPO_REF}" CONTENT_REPO_REF
@@ -181,6 +185,7 @@ while [[ $# -gt 0 ]]; do
         --ref)                GIT_REF="$2";               shift 2 ;;
         --local-path)         LOCAL_PATH="$2";            shift 2 ;;
         --no-rtk)             INSTALL_RTK="false";        shift ;;
+        --no-headroom)        INSTALL_HEADROOM="false";   shift ;;
         --force)              FORCE="true";               shift ;;
         --interactive)        INTERACTIVE="true";          shift ;;
         -h|--help)            usage ;;
@@ -280,6 +285,29 @@ if not any(
         f.write("\n")
     print("  RTK PreToolUse hook added to Claude hooks template")
 PYEOF
+fi
+
+# ---------------------------------------------------------------------------
+# Headroom (installed by default) — request-level context compression CLI
+#
+# Python tool installed via uv. Not a hook and not auto-active: activate
+# per-session with `headroom wrap claude`. RTK stays the active input-side
+# layer; Headroom only stacks on top when explicitly wrapped.
+#
+# [proxy] (~430MB) covers wrap/proxy; [all] (~5.5GB) adds ML/eval and is only
+# for local training/benchmarking — escalate with `uv tool install --reinstall`.
+# ---------------------------------------------------------------------------
+if [[ "${INSTALL_HEADROOM}" == "true" ]]; then
+    if command -v headroom &>/dev/null; then
+        info "Headroom already installed: $(headroom --version 2>/dev/null || echo 'unknown version') (inactive until 'headroom wrap claude')"
+    elif command -v uv &>/dev/null; then
+        info "Installing Headroom CLI..."
+        uv tool install "headroom-ai[proxy]" \
+            && info "Headroom installed: $(headroom --version 2>/dev/null || echo 'unknown version') (inactive until 'headroom wrap claude')" \
+            || warn "Headroom install failed, continuing without it"
+    else
+        warn "Headroom requires uv (not found), skipping"
+    fi
 fi
 
 # ---------------------------------------------------------------------------
