@@ -46,6 +46,11 @@
       "default": true,
       "description": "Install the Headroom CLI (Python, via uv) for request-level context compression. Installed by default but NOT a hook and NOT auto-active: activate per-session with `headroom wrap claude`. RTK stays the active input-side layer; only `headroom wrap` stacks the two."
     },
+    "installWikictl": {
+      "type": "boolean",
+      "default": false,
+      "description": "Install wikictl, a file-based memory layer for AI agents (CLI + MCP server + wikictl-* skills). Off by default. When true, the vendored wikictl package is installed via `uv tool install` and a gated wikictl entry is added to the scaffolded .mcp.json. Requires uv."
+    },
     "contentRepo": {
       "type": "string",
       "default": "",

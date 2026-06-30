@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ entry.description or entry.name }} — wikictl{% endblock %}
+{% block content %}
+<div class="entry-header">
+    <div class="entry-meta-strip">
+        <code class="meta-name">{{ entry.name }}</code>
+        {% if entry.section %}<span class="meta-sep">·</span><span>{{ entry.section }}</span>{% endif %}
+        {% if entry.tags %}
+        <span class="meta-sep">·</span>{% for tag in entry.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+        {% endif %}
+        <span class="meta-sep">·</span><span>{{ entry.updated_at | format_date }}</span>
+    </div>
+</div>
+{{ body_html | safe }}
+{% endblock %}

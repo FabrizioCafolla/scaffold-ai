@@ -13,6 +13,7 @@ CONTENT_REPO="${CONTENTREPO:-}"
 CONTENT_REPO_REF="${CONTENTREPOREF:-main}"
 INSTALL_RTK="${INSTALLRTK:-true}"
 INSTALL_HEADROOM="${INSTALLHEADROOM:-true}"
+INSTALL_WIKICTL="${INSTALLWIKICTL:-false}"
 
 # ---------------------------------------------------------------------------
 # Verify Python 3.9+ with venv support.
@@ -140,6 +141,26 @@ if [[ "${INSTALL_HEADROOM}" == "true" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# wikictl (optional) — file-based memory layer for AI agents (CLI + MCP server).
+# Vendored alongside the feature and installed as an isolated CLI from the local
+# path, mirroring how Headroom is installed. The MCP entry and skills are wired
+# by scaffold.py; this step only provides the `wikictl` binary.
+# ---------------------------------------------------------------------------
+if [[ "${INSTALL_WIKICTL}" == "true" ]]; then
+  if command -v wikictl &>/dev/null; then
+    echo "[OK] wikictl already installed: $(wikictl --version 2>/dev/null || echo 'unknown version')"
+  elif command -v uv &>/dev/null; then
+    if uv tool install "${ASSETS_DIR}/wikictl[serve]"; then
+      echo "[OK] wikictl installed: $(wikictl --version 2>/dev/null || echo 'unknown version')"
+    else
+      echo "[WARN] wikictl install failed, continuing without it"
+    fi
+  else
+    echo "[WARN] wikictl requires uv (not found), skipping"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Shared helpers embedded into both wrapper scripts at install time.
 #
 # _get_remote_sha URL REF
@@ -237,6 +258,7 @@ fi
   --create-file-setting "${CREATE_FILE_SETTING}" \\
   --update-gitignore "${UPDATE_GITIGNORE}" \\
   --install-defaults "${INSTALL_DEFAULTS}" \\
+  --install-wikictl "${INSTALL_WIKICTL}" \\
   \${CONTENT_REPO_SHA:+--content-repo-sha "\${CONTENT_REPO_SHA}"} \\
   \${CONTENT_REPO_PATH:+--content-repo-local-path "\${CONTENT_REPO_PATH}"}
 EOF
@@ -278,6 +300,7 @@ rm -f "\${WORKSPACE}/.scaffold-ai.lock"
   --create-file-setting "${CREATE_FILE_SETTING}" \\
   --update-gitignore "${UPDATE_GITIGNORE}" \\
   --install-defaults "${INSTALL_DEFAULTS}" \\
+  --install-wikictl "${INSTALL_WIKICTL}" \\
   \${CONTENT_REPO_SHA:+--content-repo-sha "\${CONTENT_REPO_SHA}"} \\
   \${CONTENT_REPO_PATH:+--content-repo-local-path "\${CONTENT_REPO_PATH}"}
 EOF

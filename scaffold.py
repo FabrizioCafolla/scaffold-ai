@@ -330,6 +330,37 @@ def _apply_copilot_hooks(ws: pathlib.Path, hooks_path: pathlib.Path, dest: str) 
     print(f"  [hooks] wrote {dst.relative_to(ws)}")
 
 
+def _merge_wikictl_mcp(ws: pathlib.Path, feature_dir: pathlib.Path) -> None:
+    """Merge the gated wikictl server into .mcp.json (idempotent, additive only)."""
+    snippet = feature_dir / "config" / "mcp.wikictl.json"
+    if not snippet.exists():
+        print(f"  [WARN] missing config/mcp.wikictl.json template")
+        return
+    try:
+        wikictl_servers = json.loads(snippet.read_text()).get("mcpServers", {})
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  [WARN] failed to read config/mcp.wikictl.json: {e}")
+        return
+
+    dst = ws / ".mcp.json"
+    if dst.exists():
+        try:
+            data = json.loads(dst.read_text())
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"  [WARN] failed to read .mcp.json, skipping wikictl entry: {e}")
+            return
+    else:
+        data = {"mcpServers": {}}
+
+    servers = data.setdefault("mcpServers", {})
+    if all(servers.get(k) == v for k, v in wikictl_servers.items()):
+        print(f"  [skip] .mcp.json wikictl entry (already present)")
+        return
+    servers.update(wikictl_servers)
+    dst.write_text(json.dumps(data, indent=2) + "\n")
+    print(f"  [mcp] added wikictl server to .mcp.json")
+
+
 def scaffold(
     workspace: str,
     tools: list[str],
@@ -340,6 +371,7 @@ def scaffold(
     install_defaults: bool,
     content_repo_local_path: str | None,
     content_repo_sha: str | None = None,
+    install_wikictl: bool = False,
 ) -> None:
     feature_dir = pathlib.Path(__file__).parent
     ws = pathlib.Path(workspace)
@@ -486,6 +518,12 @@ def scaffold(
         else:
             print(f"  [WARN] missing config/mcp.json template")
 
+    # --- Gated wikictl MCP entry ---
+    # Present only when wikictl is enabled; merged idempotently so it survives
+    # the copy-once .mcp.json and never clobbers other servers.
+    if install_wikictl:
+        _merge_wikictl_mcp(ws, feature_dir)
+
     if update_gitignore and gitignore_entries:
         _update_gitignore(ws, list(dict.fromkeys(gitignore_entries)))
 
@@ -518,6 +556,7 @@ if __name__ == "__main__":
     parser.add_argument("--create-file-setting", default="true", help="Create settings files (true/false)")
     parser.add_argument("--update-gitignore", default="true", help="Add scaffold paths to .gitignore (true/false)")
     parser.add_argument("--install-defaults", default="true", help="Install bundled default content (true/false)")
+    parser.add_argument("--install-wikictl", default="false", help="Add the gated wikictl MCP server to .mcp.json (true/false)")
     parser.add_argument("--content-repo-local-path", default="", help="Local path to pre-cloned content repo")
     parser.add_argument("--content-repo-sha", default="", help="Pre-computed HEAD SHA of the content repo (from git ls-remote); skips a local git call")
     parser.add_argument("--check-only", action="store_true", help="Compare content hash against lock file without running scaffold; exits 0 if up-to-date, 1 if stale")
@@ -542,4 +581,5 @@ if __name__ == "__main__":
         install_defaults=_flag(args.install_defaults),
         content_repo_local_path=args.content_repo_local_path or None,
         content_repo_sha=args.content_repo_sha or None,
+        install_wikictl=_flag(args.install_wikictl),
     )

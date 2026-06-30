@@ -74,6 +74,7 @@ Assets are scaffolded automatically on first container create (`onCreateCommand`
 | `updateGitignore`   | boolean | `true`   | Add scaffold-managed paths to `.gitignore`                                                                                             |
 | `installDefaults`   | boolean | `true`   | Install bundled default agents and skills. Set `false` to use only `contentRepo`                                                       |
 | `installRtk`        | boolean | `true`   | Install [RTK](https://github.com/rtk-ai/rtk) and register its Claude Code `PreToolUse` hook in the scaffolded hooks template           |
+| `installWikictl`    | boolean | `false`  | Install [wikictl](#wikictl) — a file-based AI memory layer (CLI + MCP server + `wikictl-*` skills). Off by default                      |
 | `contentRepo`       | string  | `""`     | GitHub repo URL with additional agents/skills (and optional hooks/mcp overrides) merged on top of defaults                            |
 | `contentRepoRef`    | string  | `main`   | Branch or tag of the content repo                                                                                                      |
 
@@ -84,6 +85,28 @@ Scaffolded automatically when `claude` is in `tools`:
 - **Statusline** (`.claude/statusline.sh` + `statusLine` in the `settings.json` template): model, directory, git branch, context window % with color-coded bar, token counts, session cost (API billing only — hidden on Pro/Max plans where `rate_limits` is present), lines added/removed, 5-hour rate limit, and token-saving tool indicators (`⚡rtk` / `🪨caveman`, green = active, dim = installed). Requires `jq` in the container; degrades to a minimal line without it. Skipped if the workspace already has `.claude/statusline.sh` / `settings.json`.
 - **Caveman skill** ([upstream](https://github.com/JuliusBrussee/caveman)): bundled in the default skills, deployed to `.claude/skills/caveman`. Compresses Claude's prose replies (~65% of output tokens). Activate per session with `/caveman` (`lite|full|ultra`); disable with "stop caveman". Refresh the bundled copy from upstream with `just update-caveman`.
 - **RTK** (enabled by default, `installRtk: false` to disable): installs the binary to `/usr/local/bin` and injects the `PreToolUse` hook into the Claude hooks template, so every scaffold run merges it into `.claude/settings.json`. Bash commands are then transparently rewritten to token-compressed `rtk` equivalents (60-90% savings on `git status`, test runners, `find`, …). Check savings with `rtk gain`.
+
+#### wikictl
+
+**wikictl** (`installWikictl: false` by default) is a file-based memory layer for AI agents — a wiki of Markdown entries with YAML frontmatter, queried over MCP. The source is vendored with the feature. When enabled, scaffold-ai provisions three things:
+
+- **CLI** — installed via `uv tool install` from the vendored path (requires `uv`; warns and continues if missing). Provides `wikictl create|read|list|search|tags|edit|move|delete|schema|index|serve`.
+- **MCP server** — a gated `wikictl` entry (`http://127.0.0.1:8000/mcp/`, started by `wikictl serve`) is merged into `.mcp.json` only when `installWikictl` is true. The server encodes a metadata-first protocol and exposes `get_schema` (the entry metadata contract). The `wikictl-*` skills are always deployed alongside the other default skills.
+
+Enable it in a devcontainer:
+
+```json
+{
+  "features": {
+    "ghcr.io/fabriziocafolla/scaffold-ai/scaffold-ai:0": {
+      "tools": "claude",
+      "installWikictl": true
+    }
+  }
+}
+```
+
+Or from the CLI: `bash cli.sh --workspace . --tools claude --wikictl`.
 
 #### Private content repos
 
@@ -132,6 +155,7 @@ bash scaffold-ai.sh [OPTIONS]
 | `--ref BRANCH\|TAG`      | `main`      | scaffold-ai git ref to clone                             |
 | `--local-path DIR`       |             | Use a local scaffold-ai checkout instead of cloning (dev/test, implies `--force`) |
 | `--no-rtk`               |             | Skip [RTK](https://github.com/rtk-ai/rtk) install and Claude `PreToolUse` hook (installed by default, mirrors devcontainer `installRtk`) |
+| `--wikictl`              |             | Install [wikictl](#wikictl) (CLI + MCP server + skills; off by default, mirrors devcontainer `installWikictl`) |
 | `--force`                |             | Ignore the `.scaffold-ai.lock` hash and re-scaffold      |
 | `--interactive`          |             | Guided prompt mode                                       |
 

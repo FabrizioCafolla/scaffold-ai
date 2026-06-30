@@ -49,6 +49,7 @@ GIT_REF="main"
 LOCAL_PATH=""
 INSTALL_RTK="true"
 INSTALL_HEADROOM="true"
+INSTALL_WIKICTL="false"
 FORCE="false"
 INTERACTIVE="false"
 readonly REPO_URL="https://github.com/FabrizioCafolla/scaffold-ai.git"
@@ -95,6 +96,7 @@ Options:
   --local-path DIR        Use a local scaffold-ai checkout instead of cloning (dev/test, implies --force)
   --no-rtk                Skip RTK install and Claude hook (installed by default, mirrors devcontainer)
   --no-headroom           Skip the Headroom CLI install (installed by default; activate per-session with 'headroom wrap claude')
+  --wikictl               Install wikictl (file-based AI memory: CLI + MCP server + skills; off by default)
   --force                 Ignore the .scaffold-ai.lock hash and re-scaffold
   --interactive           Guided prompt mode
   -h, --help              Show this help
@@ -139,6 +141,7 @@ run_interactive() {
     _prompt_bool  "installDefaults"                           "${INSTALL_DEFAULTS}"     INSTALL_DEFAULTS
     _prompt_bool  "installRtk"                                "${INSTALL_RTK}"          INSTALL_RTK
     _prompt_bool  "installHeadroom"                           "${INSTALL_HEADROOM}"     INSTALL_HEADROOM
+    _prompt_bool  "installWikictl"                            "${INSTALL_WIKICTL}"      INSTALL_WIKICTL
     _prompt       "contentRepo (GitHub URL, leave blank to skip)" "" CONTENT_REPO
     if [[ -n "${CONTENT_REPO}" ]]; then
         _prompt   "contentRepoRef" "${CONTENT_REPO_REF}" CONTENT_REPO_REF
@@ -186,6 +189,7 @@ while [[ $# -gt 0 ]]; do
         --local-path)         LOCAL_PATH="$2";            shift 2 ;;
         --no-rtk)             INSTALL_RTK="false";        shift ;;
         --no-headroom)        INSTALL_HEADROOM="false";   shift ;;
+        --wikictl)            INSTALL_WIKICTL="true";     shift ;;
         --force)              FORCE="true";               shift ;;
         --interactive)        INTERACTIVE="true";          shift ;;
         -h|--help)            usage ;;
@@ -311,6 +315,24 @@ if [[ "${INSTALL_HEADROOM}" == "true" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# wikictl (optional) — file-based AI memory layer (CLI + MCP server). Installed
+# as an isolated CLI from the vendored source path, mirroring Headroom. The MCP
+# entry and skills are wired by scaffold.py below.
+# ---------------------------------------------------------------------------
+if [[ "${INSTALL_WIKICTL}" == "true" ]]; then
+    if command -v wikictl &>/dev/null; then
+        info "wikictl already installed: $(wikictl --version 2>/dev/null || echo 'unknown version')"
+    elif command -v uv &>/dev/null; then
+        info "Installing wikictl..."
+        uv tool install "${TEMP_DIR}/scaffold-ai/wikictl[serve]" \
+            && info "wikictl installed: $(wikictl --version 2>/dev/null || echo 'unknown version')" \
+            || warn "wikictl install failed, continuing without it"
+    else
+        warn "wikictl requires uv (not found), skipping"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Content repo clone (if requested)
 # ---------------------------------------------------------------------------
 CONTENT_REPO_LOCAL_PATH=""
@@ -344,4 +366,5 @@ EXTRA_ARGS=()
     --create-file-setting     "${CREATE_FILE_SETTING}" \
     --update-gitignore        "${UPDATE_GITIGNORE}" \
     --install-defaults        "${INSTALL_DEFAULTS}" \
+    --install-wikictl         "${INSTALL_WIKICTL}" \
     "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"

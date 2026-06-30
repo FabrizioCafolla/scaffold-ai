@@ -270,3 +270,53 @@ skills:
         command line. Always use this skill when the user mentions gh, GitHub
         CLI, creating a GitHub issue, or opening a pull request via CLI — even
         if they don't explicitly say "gh".
+
+  wikictl:
+    category: reasoning
+    subcategory: research-and-study
+    copilot:
+      name: wikictl
+      description: "Bootstrap skill for the wikictl AI memory system. Load this skill to understand what wikictl is, when to use memory, and which operational skill to invoke (wikictl-read, wikictl-create, wikictl-edit). Use when the agent mentions 'memory', 'remember', 'wiki', 'wikictl', 'recall', 'what do I know about', or needs persistent knowledge across sessions."
+    claude:
+      name: wikictl
+      description: "Bootstrap skill for the wikictl AI memory system. Load this skill to understand what wikictl is, when to use memory, and which operational skill to invoke (wikictl-read, wikictl-create, wikictl-edit). Use when the agent mentions 'memory', 'remember', 'wiki', 'wikictl', 'recall', 'what do I know about', or needs persistent knowledge across sessions."
+
+  wikictl-read:
+    category: reasoning
+    subcategory: research-and-study
+    copilot:
+      name: wikictl-read
+      description: "Retrieve and correlate memories from the wikictl wiki. Use when the agent needs to recall information, find context, or answer questions that might be covered by previously stored knowledge. Trigger on: 'what do I know about', 'recall', 'find in memory', 'check wiki', 'look up', or when context from past sessions would be useful."
+    claude:
+      name: wikictl-read
+      description: "Retrieve and correlate memories from the wikictl wiki. Use when the agent needs to recall information, find context, or answer questions that might be covered by previously stored knowledge. Trigger on: 'what do I know about', 'recall', 'find in memory', 'check wiki', 'look up', or when context from past sessions would be useful."
+
+  wikictl-create:
+    category: reasoning
+    subcategory: research-and-study
+    copilot:
+      name: wikictl-create
+      description: "Create new memory entries in the wikictl wiki. Use when the agent encounters information worth persisting: decisions made, user preferences, project conventions, architecture choices, lessons learned. Trigger on: 'remember this', 'save this', 'store this', 'note this down', or when the agent recognizes memory-worthy information during a session."
+    claude:
+      name: wikictl-create
+      description: "Create new memory entries in the wikictl wiki. Use when the agent encounters information worth persisting: decisions made, user preferences, project conventions, architecture choices, lessons learned. Trigger on: 'remember this', 'save this', 'store this', 'note this down', or when the agent recognizes memory-worthy information during a session."
+
+  wikictl-edit:
+    category: reasoning
+    subcategory: research-and-study
+    copilot:
+      name: wikictl-edit
+      description: "Edit existing memory entries in the wikictl wiki. Use when the agent has updated, corrected, or supplementary information for an existing wiki entry. Trigger on: 'update memory', 'correct this', 'add to existing', 'modify wiki entry', or when the agent discovers that stored information needs revision."
+    claude:
+      name: wikictl-edit
+      description: "Edit existing memory entries in the wikictl wiki. Use when the agent has updated, corrected, or supplementary information for an existing wiki entry. Trigger on: 'update memory', 'correct this', 'add to existing', 'modify wiki entry', or when the agent discovers that stored information needs revision."
+
+  wikictl-mcp:
+    category: reasoning
+    subcategory: research-and-study
+    copilot:
+      name: wikictl-mcp
+      description: "Interact with the wikictl wiki via MCP protocol. Use when the agent has an MCP client configured and the wikictl server is running. Provides full CRUD access to wiki entries through MCP tools instead of CLI commands. Trigger on: 'use mcp', 'mcp tools', 'connect to wiki server', or when the agent detects an MCP connection to wikictl is available."
+    claude:
+      name: wikictl-mcp
+      description: "Interact with the wikictl wiki via MCP protocol. Use when the agent has an MCP client configured and the wikictl server is running. Provides full CRUD access to wiki entries through MCP tools instead of CLI commands. Trigger on: 'use mcp', 'mcp tools', 'connect to wiki server', or when the agent detects an MCP connection to wikictl is available."

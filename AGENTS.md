@@ -19,6 +19,7 @@ scaffold-ai/
 │   └── prompts/                # Future use
 ├── config/                     # Per-tool config templates
 │   ├── mcp.json                # Shared .mcp.json template (Claude, VS Code, Copilot)
+│   ├── mcp.wikictl.json        # Gated wikictl MCP entry (merged into .mcp.json when installWikictl)
 │   ├── claude/
 │   │   ├── hooks.json          # Claude hooks template (always-managed; installRtk injects the rtk hook here)
 │   │   ├── settings.json       # Claude settings (copy-once, includes statusLine)
@@ -27,6 +28,9 @@ scaffold-ai/
 │   └── copilot/
 │       ├── hooks.json          # Copilot hooks template (always-managed)
 │       └── config.json         # Copilot config (copy-once)
+├── wikictl/                    # Vendored wikictl package (installed when installWikictl)
+│   ├── pyproject.toml          # Standalone pip-installable package
+│   └── src/wikictl/            # CLI + MCP server + render-only web UI
 ├── scaffold.py                 # Main Python scaffolder
 ├── install.sh                  # Devcontainer install script
 ├── cli.sh                      # Standalone CLI (curl | bash usage)
@@ -47,6 +51,13 @@ scaffold-ai/
 1. `cli.sh` is fetched via `curl | bash`
 2. It clones scaffold-ai (or the specified `--ref`; with `--local-path DIR` it uses a local checkout instead — required to test uncommitted changes, since the default always pulls from GitHub), optionally clones a `--content-repo`, then runs `scaffold.py` directly
 3. By default it also installs the RTK binary and injects the `rtk hook claude` PreToolUse entry into the staged Claude hooks template before scaffolding (opt out with `--no-rtk`; mirrors the devcontainer `installRtk` default)
+
+**Optional components (gated install flags):**
+
+- **RTK** (`installRtk` / `--no-rtk`, default on) — token-compressing Bash `PreToolUse` hook.
+- **Headroom** (`installHeadroom`, default on) — request-level context compression CLI; installed but inactive until `headroom wrap claude`.
+- **wikictl** (`installWikictl` / `--wikictl`, default **off**) — file-based AI memory layer. The source is vendored at `wikictl/` and installed with `uv tool install "${ASSETS_DIR}/wikictl[serve]"` (devcontainer) / `"${TEMP_DIR}/scaffold-ai/wikictl[serve]"` (CLI); warns and continues if `uv` is missing. `install.sh`/`cli.sh` pass `--install-wikictl` to `scaffold.py`, which then merges the gated `config/mcp.wikictl.json` server entry into `.mcp.json`. The `wikictl-*` skills live in `content/skills/` and deploy unconditionally (like `caveman`).
+  - Agents using wikictl read the metadata-first protocol from the MCP server itself: scan with `list_entries`/`search_entries` (metadata only), evaluate relevance from `description`/`tags`, then `read_entry` only what's needed. `get_schema` returns the entry metadata contract (field names, types, required/optional, validation rules) and works on an empty wiki.
 
 **scaffold.py reads:**
 
@@ -133,6 +144,11 @@ skills:
 | `developer-terraform`             | engineering | architecture-and-platform |
 | `developer-kubernetes`            | engineering | architecture-and-platform |
 | `developer-github-cli`            | tools       | cli-and-tool-usage        |
+| `wikictl`                         | reasoning   | research-and-study        |
+| `wikictl-read`                    | reasoning   | research-and-study        |
+| `wikictl-create`                  | reasoning   | research-and-study        |
+| `wikictl-edit`                    | reasoning   | research-and-study        |
+| `wikictl-mcp`                     | reasoning   | research-and-study        |
 | `copilot-agent-creator`           | meta        | skills-and-agents         |
 | `copilot-skill-creator`           | meta        | skills-and-agents         |
 
