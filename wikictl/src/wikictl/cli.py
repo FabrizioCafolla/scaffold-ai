@@ -25,6 +25,7 @@ from wikictl.models import metadata_schema
 
 
 @click.group()
+@click.version_option(package_name="wikictl")
 @click.option(
     "--wiki-dir",
     default=None,

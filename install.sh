@@ -233,12 +233,15 @@ if [[ -n "${CONTENT_REPO}" ]]; then
   CONTENT_REPO_SHA=\$(_get_remote_sha "${CONTENT_REPO}" "${CONTENT_REPO_REF}")
 fi
 
-# Fast check: exit early if nothing has changed
-if "${ASSETS_DIR}/venv/bin/python3" "${ASSETS_DIR}/scaffold.py" \\
-    --workspace "\${WORKSPACE}" \\
-    --check-only \\
-    \${CONTENT_REPO_SHA:+--content-repo-sha "\${CONTENT_REPO_SHA}"}; then
-  exit 0
+# Fast check: skip if content repo is defined but SHA is unavailable (auth failed).
+# Without the SHA the hash is incomplete — a false match would silently skip private content.
+if [[ -z "${CONTENT_REPO}" ]] || [[ -n "\${CONTENT_REPO_SHA}" ]]; then
+  if "${ASSETS_DIR}/venv/bin/python3" "${ASSETS_DIR}/scaffold.py" \\
+      --workspace "\${WORKSPACE}" \\
+      --check-only \\
+      \${CONTENT_REPO_SHA:+--content-repo-sha "\${CONTENT_REPO_SHA}"}; then
+    exit 0
+  fi
 fi
 
 # Hash changed — clone content repo and run full scaffold
