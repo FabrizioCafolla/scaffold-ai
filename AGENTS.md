@@ -19,7 +19,8 @@ scaffold-ai/
 │   └── prompts/                # Future use
 ├── config/                     # Per-tool config templates
 │   ├── mcp.json                # Shared .mcp.json template (Claude, VS Code, Copilot)
-│   ├── mcp.wikictl.json        # Gated wikictl MCP entry (merged into .mcp.json when installWikictl)
+│   ├── mcp.wikictl.json        # Gated wikictl MCP entry (merged into .mcp.json when wikictl is enabled)
+│   ├── config.default.yaml     # Starter .scaffold-ai/config.yaml template (copy-once)
 │   ├── claude/
 │   │   ├── hooks.json          # Claude hooks template (always-managed; installRtk injects the rtk hook here)
 │   │   ├── settings.json       # Claude settings (copy-once, includes statusLine)
@@ -28,35 +29,40 @@ scaffold-ai/
 │   └── copilot/
 │       ├── hooks.json          # Copilot hooks template (always-managed)
 │       └── config.json         # Copilot config (copy-once)
-├── wikictl/                    # Vendored wikictl package (installed when installWikictl)
+├── wikictl/                    # wikictl package source (fetched at runtime, never vendored into the feature)
 │   ├── pyproject.toml          # Standalone pip-installable package
 │   └── src/wikictl/            # CLI + MCP server + render-only web UI
 ├── scaffold.py                 # Main Python scaffolder
-├── install.sh                  # Devcontainer install script
-├── cli.sh                      # Standalone CLI (curl | bash usage)
+├── install.sh                  # Devcontainer entrypoint — minimal, generates the scaffoldai launcher only
+├── cli.sh                      # Single implementation: install/sync subcommands, used by devcontainer AND curl
 ├── Makefile                    # Local test commands
-└── devcontainer-feature.json   # Feature manifest
+└── devcontainer-feature.json   # Feature manifest (boolean options only)
 ```
 
 ## How It Works
 
+Nothing about scaffold-ai is vendored into the published feature. `cli.sh` is the single implementation of both the devcontainer path and the standalone curl path; on every run it fetches (or, for local dev, uses `--local-path` against) `scaffold.py` + `content/` + `wikictl/` from this repo at a `--ref`, pinned to the feature version for the devcontainer.
+
 **Devcontainer path:**
 
-1. `install.sh` runs at image build installs pyyaml, copies the feature to `/usr/local/share/scaffold-ai/`, writes `/usr/local/bin/scaffold-ai-cmd`
-2. On `onCreateCommand` `scaffold-ai-cmd` runs `scaffold.py`, which merges content + metadata and writes assembled files to the workspace
-3. `postStartCommand` re-runs only when a content hash has changed (no-op on clean restarts)
+1. `install.sh` runs at image build: verifies Python, reads the feature `version` from `devcontainer-feature.json`, and generates `/usr/local/bin/scaffoldai` — a small launcher with that version baked in as `REF`. It installs no binary and vendors nothing.
+2. `postCreateCommand: scaffoldai install` fetches `cli.sh`@REF and runs its `install` subcommand: resolves `.scaffold-ai/config.yaml`, installs enabled binaries, runs `scaffold.py`.
+3. `postStartCommand: scaffoldai sync` fetches `cli.sh`@REF and runs `sync`: a hash-check that only re-scaffolds when content changed, skipping binary installs.
+4. Both `scaffoldai` invocations `|| exit 0` — a failed fetch (offline, GitHub outage) never blocks container start.
 
 **CLI path:**
 
-1. `cli.sh` is fetched via `curl | bash`
-2. It clones scaffold-ai (or the specified `--ref`; with `--local-path DIR` it uses a local checkout instead — required to test uncommitted changes, since the default always pulls from GitHub), optionally clones a `--content-repo`, then runs `scaffold.py` directly
-3. By default it also installs the RTK binary and injects the `rtk hook claude` PreToolUse entry into the staged Claude hooks template before scaffolding (opt out with `--no-rtk`; mirrors the devcontainer `installRtk` default)
+1. `cli.sh` is fetched via `curl | bash` (defaults to the `install` subcommand if none given)
+2. It clones scaffold-ai at `--ref` (default `main`; `--local-path DIR` uses a local checkout instead — required to test uncommitted changes)
+3. It resolves `.scaffold-ai/config.yaml` in the target workspace on top of CLI flags, installs enabled binaries, optionally clones a `--content-repo`, then runs `scaffold.py`
 
-**Optional components (gated install flags):**
+**Configuration precedence:** for every setting, `.scaffold-ai/config.yaml` (workspace) > feature boolean option / CLI flag (baked into the `scaffoldai` launcher, or passed directly to `cli.sh`) > built-in default. The workspace config is copy-once seeded from whatever resolved before it existed.
 
-- **RTK** (`installRtk` / `--no-rtk`, default on) — token-compressing Bash `PreToolUse` hook.
-- **Headroom** (`installHeadroom`, default on) — request-level context compression CLI; installed but inactive until `headroom wrap claude`.
-- **wikictl** (`installWikictl` / `--wikictl`, default **off**) — file-based AI memory layer. The source is vendored at `wikictl/` and installed with `uv tool install "${ASSETS_DIR}/wikictl[serve]"` (devcontainer) / `"${TEMP_DIR}/scaffold-ai/wikictl[serve]"` (CLI); warns and continues if `uv` is missing. `install.sh`/`cli.sh` pass `--install-wikictl` to `scaffold.py`, which then merges the gated `config/mcp.wikictl.json` server entry into `.mcp.json`. The `wikictl-*` skills live in `content/skills/` and deploy unconditionally (like `caveman`).
+**Optional components (gated by `.scaffold-ai/config.yaml` → `install.*`, or the matching feature option / CLI flag):**
+
+- **RTK** (`install.rtk` / `installRtk` / `--no-rtk`, default on) — token-compressing Bash `PreToolUse` hook.
+- **Headroom** (`install.headroom` / `installHeadroom` / `--no-headroom`, default on) — request-level context compression CLI; installed but inactive until `headroom wrap claude`.
+- **wikictl** (`install.wikictl` / `installWikictl` / `--wikictl`, default **off**) — file-based AI memory layer. The source lives at `wikictl/` in this repo, fetched at the pinned ref and installed with `uv tool install "${SCAFFOLD_SRC}/wikictl[serve]"`; warns and continues if `uv` is missing. `cli.sh` passes `--install-wikictl` to `scaffold.py`, which then merges the gated `config/mcp.wikictl.json` server entry into `.mcp.json`. The `wikictl-*` skills live in `content/skills/` and deploy unconditionally (like `caveman`).
   - Agents using wikictl read the metadata-first protocol from the MCP server itself: scan with `list_entries`/`search_entries` (metadata only), evaluate relevance from `description`/`tags`, then `read_entry` only what's needed. `get_schema` returns the entry metadata contract (field names, types, required/optional, validation rules) and works on an empty wiki.
 
 **scaffold.py reads:**

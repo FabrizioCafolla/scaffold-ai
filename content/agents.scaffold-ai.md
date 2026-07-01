@@ -2,7 +2,7 @@
 
 [scaffold-ai](https://github.com/FabrizioCafolla/scaffold-ai) is a devcontainer feature that assembles AI skills, agents, and hooks into the workspace at container startup. It reads content from one or two repositories, injects per-tool frontmatter, and writes output to tool-specific paths.
 
-**Generated files must never be edited directly.** On the next scaffold run (container restart or `scaffold-ai-cmd`) they are fully regenerated — any manual change is lost. To change a skill or agent: edit the source in the content repo, not the output. Hooks are also scaffold-managed: customize them via the content repo override.
+**Generated files must never be edited directly.** On the next scaffold run (`scaffoldai sync` on container start, or `scaffoldai install`) they are fully regenerated — any manual change is lost. To change a skill or agent: edit the source in the content repo, not the output. Hooks are also scaffold-managed: customize them via the content repo override.
 
 ### Token-saving harness
 
@@ -14,23 +14,31 @@ scaffold-ai can provision three token-saving layers, each acting at a different 
 
 ### Setup
 
+Structured config — `tools`, the content repo — lives in the workspace's `.scaffold-ai/config.yaml`, the single source of truth. Devcontainer feature options are boolean enables only.
+
 **Devcontainer** (`devcontainer.json`):
 
 ```json
 {
   "features": {
-    "ghcr.io/fabriziocafolla/scaffold-ai:0": {
-      "tools": "claude",
-      "contentRepo": "https://github.com/your-org/your-private-skills-repo"
-    }
+    "ghcr.io/fabriziocafolla/scaffold-ai:0.4.0": {}
   }
 }
+```
+
+`.scaffold-ai/config.yaml`:
+
+```yaml
+tools: [claude]
+contentRepo:
+  url: https://github.com/your-org/your-private-skills-repo
+  ref: main
 ```
 
 **CLI** (`cli.sh`) — for use outside a devcontainer:
 
 ```bash
-GITHUB_TOKEN=$(gh auth token) bash cli.sh \
+GITHUB_TOKEN=$(gh auth token) bash cli.sh install \
   --workspace /path/to/project \
   --tools claude \
   --content-repo https://github.com/your-org/your-private-skills-repo

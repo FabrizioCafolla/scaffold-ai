@@ -2,7 +2,9 @@
 
 Devcontainer feature that scaffolds AI agent and skill assets (Claude, GitHub Copilot) into a workspace. Each asset is assembled from tool-agnostic content files with per-tool YAML frontmatter injected at runtime.
 
-Works both as a **devcontainer feature** (automatic, runs only when content changes) and as a **standalone CLI** (no container required).
+Nothing is vendored into the published feature. A single script, `cli.sh`, does the actual work — it's fetched at runtime (pinned to the feature version in the devcontainer, or from `main` for standalone use) and it clones this repo to get `scaffold.py` and the content it needs. The devcontainer and the `curl | bash` installer run the exact same file.
+
+Configuration follows one rule: **`.scaffold-ai/config.yaml` in your workspace wins.** Devcontainer feature options and CLI flags are just the fallback for whatever the YAML doesn't set.
 
 ---
 
@@ -28,12 +30,29 @@ For devcontainers, add the Python feature **before** scaffold-ai:
 {
   "features": {
     "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
-    "ghcr.io/fabriziocafolla/scaffold-ai/scaffold-ai:0": { "...": "..." }
+    "ghcr.io/fabriziocafolla/scaffold-ai/scaffold-ai:0.4.0": { "...": "..." }
   }
 }
 ```
 
 For CLI usage, ensure `python3 >= 3.9` is in your PATH.
+
+### uv (optional)
+
+Only needed if you enable Headroom or wikictl (`uv tool install` under the hood). Without it, those installs are skipped with a warning; everything else works.
+
+---
+
+## How it works
+
+**Devcontainer:**
+
+1. `install.sh` runs once at image build. It doesn't install anything — it just checks Python, reads the feature's `version`, and writes `/usr/local/bin/scaffoldai`, a small launcher with that version baked in as the pinned ref.
+2. `postCreateCommand: scaffoldai install` runs on first container create: fetches `cli.sh` at the pinned ref, resolves `.scaffold-ai/config.yaml`, installs whatever's enabled (RTK/Headroom/wikictl), and runs the first scaffold.
+3. `postStartCommand: scaffoldai sync` runs on every later start: fetches `cli.sh` again, but only re-scaffolds if content actually changed (a cheap `git ls-remote` hash check) — no binary reinstalls.
+4. Both exit 0 on failure. Offline, GitHub down, whatever — container start is never blocked.
+
+**Standalone CLI:** `cli.sh` is fetched via `curl | bash`, clones scaffold-ai at `--ref` (default `main`), resolves config the same way, and runs the scaffold. It's literally the same script the devcontainer uses.
 
 ---
 
@@ -41,154 +60,157 @@ For CLI usage, ensure `python3 >= 3.9` is in your PATH.
 
 ### Devcontainer
 
-Add the feature to your `.devcontainer/devcontainer.json`:
-
 ```json
 {
   "features": {
     "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
-    "ghcr.io/fabriziocafolla/scaffold-ai:0": {
-      "tools": "claude",
+    "ghcr.io/fabriziocafolla/scaffold-ai:0.4.0": {
       "createFileMCP": true,
       "createFileHooks": true,
       "createFileSetting": true,
       "updateGitignore": true,
       "installDefaults": true,
-      "contentRepo": "",
-      "contentRepoRef": "main"
+      "installRtk": true,
+      "installHeadroom": true,
+      "installWikictl": false
     }
   }
 }
 ```
 
-Assets are scaffolded automatically on first container create (`onCreateCommand`). Subsequent restarts skip the scaffold unless content has changed (`postStartCommand` with hash check).
+#### Options
+
+| Option              | Type    | Default  | Description                                                                                                                   |
+| ------------------- | ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `createFileMCP`     | boolean | `true`   | Create shared `.mcp.json` at workspace root. Skipped if already exists. Serves Claude, VS Code, and Copilot                     |
+| `createFileHooks`   | boolean | `true`   | Deploy and manage hooks files for active tools. Always updated on scaffold runs. Overridable via content repo                   |
+| `createFileSetting` | boolean | `true`   | Copy settings templates. Skipped if already exist                                                                                |
+| `updateGitignore`   | boolean | `true`   | Add scaffold-managed paths to `.gitignore`                                                                                       |
+| `installDefaults`   | boolean | `true`   | Install bundled default agents and skills. Set `false` to use only the content repo                                             |
+| `installRtk`        | boolean | `true`   | Install [RTK](https://github.com/rtk-ai/rtk) and register its Claude Code `PreToolUse` hook in the scaffolded hooks template     |
+| `installHeadroom`   | boolean | `true`   | Install the Headroom CLI (request-level context compression). Not auto-active; activate per-session with `headroom wrap claude` |
+| `installWikictl`    | boolean | `false`  | Install [wikictl](#wikictl) — a file-based AI memory layer (CLI + MCP server + `wikictl-*` skills). Off by default              |
+
+That's the full option list — all booleans. `tools` and the content repo aren't feature options; they live in `.scaffold-ai/config.yaml` (see [Configuration](#configuration)).
+
+### CLI
+
+```bash
+# defaults (Claude only) — `install` is the default subcommand
+curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh | bash
+
+# pass args after `bash -s --`
+curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh | bash -s -- install --tools claude,copilot --no-gitignore
+```
+
+Or download once and reuse:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh -o scaffold-ai.sh
+bash scaffold-ai.sh [install|sync] [OPTIONS]
+```
+
+#### Subcommands
+
+| Subcommand | Description                                                                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------------- |
+| `install`  | Resolve config, install enabled binaries (RTK/Headroom/wikictl), run the scaffold. Default when omitted.  |
+| `sync`     | Fast path: skip binary installs, hash-check before re-scaffolding.                                        |
 
 #### Options
 
-| Option              | Type    | Default  | Description                                                                                                                            |
-| ------------------- | ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `tools`             | string  | `claude` | Comma-separated tools to scaffold: `claude`, `copilot`                                                                                 |
-| `createFileMCP`     | boolean | `true`   | Create shared `.mcp.json` at workspace root. Skipped if already exists. Serves Claude, VS Code, and Copilot                           |
-| `createFileHooks`   | boolean | `true`   | Deploy and manage hooks files for active tools. Always updated on scaffold runs. Overridable via content repo                          |
-| `createFileSetting` | boolean | `true`   | Copy settings templates. Skipped if already exist                                                                                      |
-| `updateGitignore`   | boolean | `true`   | Add scaffold-managed paths to `.gitignore`                                                                                             |
-| `installDefaults`   | boolean | `true`   | Install bundled default agents and skills. Set `false` to use only `contentRepo`                                                       |
-| `installRtk`        | boolean | `true`   | Install [RTK](https://github.com/rtk-ai/rtk) and register its Claude Code `PreToolUse` hook in the scaffolded hooks template           |
-| `installWikictl`    | boolean | `false`  | Install [wikictl](#wikictl) — a file-based AI memory layer (CLI + MCP server + `wikictl-*` skills). Off by default                      |
-| `contentRepo`       | string  | `""`     | GitHub repo URL with additional agents/skills (and optional hooks/mcp overrides) merged on top of defaults                            |
-| `contentRepoRef`    | string  | `main`   | Branch or tag of the content repo                                                                                                      |
+| Option                   | Default     | Description                                                                       |
+| ------------------------ | ----------- | ---------------------------------------------------------------------------------- |
+| `--workspace DIR`        | current dir | Target workspace directory                                                        |
+| `--tools LIST`           | `claude`    | Comma-separated tools: `claude`, `copilot`                                        |
+| `--no-mcp`               |             | Skip `.mcp.json` creation                                                          |
+| `--no-hooks`             |             | Skip hooks file management                                                        |
+| `--no-settings`          |             | Skip settings file creation                                                       |
+| `--no-gitignore`         |             | Skip `.gitignore` update                                                          |
+| `--no-defaults`          |             | Skip bundled default content                                                      |
+| `--content-repo URL`     |             | GitHub repo with additional agents, skills, hooks or mcp                          |
+| `--content-repo-ref REF` | `main`      | Branch or tag for content repo                                                     |
+| `--ref BRANCH\|TAG`      | `main`      | scaffold-ai git ref to clone (the devcontainer pins this to the feature version)  |
+| `--local-path DIR`       |             | Use a local scaffold-ai checkout instead of cloning (dev/test, implies `--force`) |
+| `--no-rtk`               |             | Skip RTK install and Claude `PreToolUse` hook                                     |
+| `--no-headroom`          |             | Skip the Headroom CLI install                                                     |
+| `--wikictl`              |             | Install [wikictl](#wikictl) (off by default)                                     |
+| `--force`                |             | Ignore the `.scaffold-ai.lock` hash and re-scaffold                              |
+| `--interactive`          |             | Guided prompt mode                                                                |
 
-#### Claude Code usability extras
+Every option here has an equivalent in `.scaffold-ai/config.yaml`, which takes priority when present — see [Configuration](#configuration).
+
+**Requirements:** `git`, `python3 >= 3.9` with `venv` module (pyyaml is installed automatically in an isolated venv if missing).
+
+#### Interactive mode
+
+```bash
+bash scaffold-ai.sh install --interactive
+```
+
+Prompts for each option, using devcontainer option names as question labels. Flags passed before `--interactive` set the defaults shown in the prompts. `.scaffold-ai/config.yaml`, if present, still wins over whatever you answer.
+
+---
+
+## Configuration
+
+`.scaffold-ai/config.yaml` in the target workspace is the single source of truth, shared by both the devcontainer and the CLI. It's created copy-once on the first `scaffoldai install` (seeded from whatever feature options or CLI flags resolved before it existed), and from then on any key it sets overrides the matching feature option or CLI flag.
+
+```yaml
+version: 1
+tools: [claude]              # claude, copilot
+install:
+  rtk: true
+  headroom: true
+  wikictl: false
+scaffold:
+  createFileMCP: true
+  createFileHooks: true
+  createFileSetting: true
+  updateGitignore: true
+  installDefaults: true
+contentRepo:
+  url: ""
+  ref: main
+```
+
+Edit it directly to change tools, toggle an install, or point at a content repo. No rebuild needed — just run `scaffoldai install` (or wait for the next `scaffoldai sync`).
+
+---
+
+## Claude Code usability extras
 
 Scaffolded automatically when `claude` is in `tools`:
 
 - **Statusline** (`.claude/statusline.sh` + `statusLine` in the `settings.json` template): model, directory, git branch, context window % with color-coded bar, token counts, session cost (API billing only — hidden on Pro/Max plans where `rate_limits` is present), lines added/removed, 5-hour rate limit, and token-saving tool indicators (`⚡rtk` / `🪨caveman`, green = active, dim = installed). Requires `jq` in the container; degrades to a minimal line without it. Skipped if the workspace already has `.claude/statusline.sh` / `settings.json`.
 - **Caveman skill** ([upstream](https://github.com/JuliusBrussee/caveman)): bundled in the default skills, deployed to `.claude/skills/caveman`. Compresses Claude's prose replies (~65% of output tokens). Activate per session with `/caveman` (`lite|full|ultra`); disable with "stop caveman". Refresh the bundled copy from upstream with `just update-caveman`.
-- **RTK** (enabled by default, `installRtk: false` to disable): installs the binary to `/usr/local/bin` and injects the `PreToolUse` hook into the Claude hooks template, so every scaffold run merges it into `.claude/settings.json`. Bash commands are then transparently rewritten to token-compressed `rtk` equivalents (60-90% savings on `git status`, test runners, `find`, …). Check savings with `rtk gain`.
+- **RTK** (`install.rtk` / `installRtk` / `--no-rtk`, on by default): installs the binary and injects the `PreToolUse` hook into the Claude hooks template, so every scaffold run merges it into `.claude/settings.json`. Bash commands are then transparently rewritten to token-compressed `rtk` equivalents (60-90% savings on `git status`, test runners, `find`, …). Check savings with `rtk gain`.
 
-#### wikictl
+---
 
-**wikictl** (`installWikictl: false` by default) is a file-based memory layer for AI agents — a wiki of Markdown entries with YAML frontmatter, queried over MCP. The source is vendored with the feature. When enabled, scaffold-ai provisions three things:
+## wikictl
 
-- **CLI** — installed via `uv tool install` from the vendored path (requires `uv`; warns and continues if missing). Provides `wikictl create|read|list|search|tags|edit|move|delete|schema|index|serve`.
-- **MCP server** — a gated `wikictl` entry (`http://127.0.0.1:8000/mcp/`, started by `wikictl serve`) is merged into `.mcp.json` only when `installWikictl` is true. The server encodes a metadata-first protocol and exposes `get_schema` (the entry metadata contract). The `wikictl-*` skills are always deployed alongside the other default skills.
+A file-based memory layer for AI agents — a wiki of Markdown entries with YAML frontmatter, queried over MCP. Its source lives at `wikictl/` in this repo and is fetched by `cli.sh` at the pinned ref, same as everything else no separate vendoring step.
 
-Enable it in a devcontainer:
+Off by default. Enabling it (`install.wikictl: true` in `.scaffold-ai/config.yaml`, `installWikictl: true` on the feature, or `--wikictl` on the CLI) provisions:
 
-```json
-{
-  "features": {
-    "ghcr.io/fabriziocafolla/scaffold-ai/scaffold-ai:0": {
-      "tools": "claude",
-      "installWikictl": true
-    }
-  }
-}
-```
+- **CLI** — installed via `uv tool install` from the fetched checkout (requires `uv`; warns and continues if missing). Provides `wikictl create|read|list|search|tags|edit|move|delete|schema|index|serve`.
+- **MCP server** — a gated `wikictl` entry (`http://127.0.0.1:8000/mcp/`, started by `wikictl serve`) merged into `.mcp.json`. The server encodes a metadata-first protocol and exposes `get_schema` (the entry metadata contract).
 
-Or from the CLI: `bash cli.sh --workspace . --tools claude --wikictl`.
+The `wikictl-*` skills deploy unconditionally alongside the other default skills, regardless of whether wikictl itself is enabled.
 
-#### Private content repos
-
-Set `GITHUB_TOKEN` as a devcontainer secret. The feature resolves auth automatically: `GITHUB_TOKEN` → `gh` CLI → anonymous (public repos only).
-
-```json
-{
-  "secrets": ["GITHUB_TOKEN"]
-}
+```yaml
+install:
+  wikictl: true
 ```
 
 ---
 
-### CLI
+## Content repo
 
-Run directly from any project root without installing anything:
+Point at any GitHub repo that follows the `content/` structure to merge additional (or private) agents and skills on top of the bundled defaults.
 
-```bash
-# defaults (Claude only)
-curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh | bash
-
-# with custom options pass args after `bash -s --`
-curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh | bash -s -- --tools claude,copilot --no-gitignore
-```
-
-Or download for repeated use:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/FabrizioCafolla/scaffold-ai/main/cli.sh -o scaffold-ai.sh
-bash scaffold-ai.sh [OPTIONS]
-```
-
-#### Options
-
-| Option                   | Default     | Description                                              |
-| ------------------------ | ----------- | -------------------------------------------------------- |
-| `--workspace DIR`        | current dir | Target workspace directory                               |
-| `--tools LIST`           | `claude`    | Comma-separated tools: `claude`, `copilot`               |
-| `--no-mcp`               |             | Skip `.mcp.json` creation                                |
-| `--no-hooks`             |             | Skip hooks file management                               |
-| `--no-settings`          |             | Skip settings file creation                              |
-| `--no-gitignore`         |             | Skip `.gitignore` update                                 |
-| `--no-defaults`          |             | Skip bundled default content                             |
-| `--content-repo URL`     |             | GitHub repo with additional agents, skills, hooks or mcp |
-| `--content-repo-ref REF` | `main`      | Branch or tag for content repo                           |
-| `--ref BRANCH\|TAG`      | `main`      | scaffold-ai git ref to clone                             |
-| `--local-path DIR`       |             | Use a local scaffold-ai checkout instead of cloning (dev/test, implies `--force`) |
-| `--no-rtk`               |             | Skip [RTK](https://github.com/rtk-ai/rtk) install and Claude `PreToolUse` hook (installed by default, mirrors devcontainer `installRtk`) |
-| `--wikictl`              |             | Install [wikictl](#wikictl) (CLI + MCP server + skills; off by default, mirrors devcontainer `installWikictl`) |
-| `--force`                |             | Ignore the `.scaffold-ai.lock` hash and re-scaffold      |
-| `--interactive`          |             | Guided prompt mode                                       |
-
-**Requirements:** `git`, `python3 >= 3.9` with `venv` module (pyyaml is installed automatically in an isolated venv).
-
-#### Interactive mode
-
-```bash
-bash scaffold-ai.sh --interactive
-```
-
-Prompts for each option, using devcontainer option names as question labels. Flags passed before `--interactive` set the defaults shown in the prompts.
-
-#### Content repo
-
-Point to any GitHub repo that follows the `content/` structure (agents and/or skills subdirectories). Remote content is merged on top of bundled defaults same key = remote wins.
-
-```bash
-# public repo
-bash scaffold-ai.sh --content-repo https://github.com/myorg/ai-content
-
-# private repo
-GITHUB_TOKEN=$(gh auth token) bash scaffold-ai.sh --content-repo https://github.com/myorg/private-ai-content
-
-# use only content repo, skip bundled defaults
-bash scaffold-ai.sh --no-defaults --content-repo https://github.com/myorg/ai-content
-```
-
----
-
-## Content repo structure
-
-A content repo must follow the same layout as `content/` in this project:
+### Layout
 
 ```
 your-content-repo/
@@ -205,21 +227,35 @@ your-content-repo/
 └── mcp.json            # optional: override shared .mcp.json template
 ```
 
-You can include any subset — anything absent falls back to bundled defaults (unless `--no-defaults` / `installDefaults: false`). Hooks and MCP overrides are full replacements, not merges.
+You can include any subset anything absent falls back to bundled defaults (unless `installDefaults: false` / `--no-defaults`). Hooks and MCP overrides are full replacements, not merges. Remote content wins on key conflicts with the bundled defaults.
 
----
+### Using it
 
-## Setting up a private content repo
+Set the content repo in `.scaffold-ai/config.yaml` (not as a feature option):
 
-Keep personal or organization-specific agents and skills in a separate private GitHub repository. scaffold-ai fetches it at scaffold time and merges it on top of the public defaults.
+```yaml
+contentRepo:
+  url: https://github.com/my-org/ai-content
+  ref: main
+```
 
-### 1. Create the repository
+For private repos, set `GITHUB_TOKEN` as a devcontainer secret:
 
-Create a new **private** GitHub repository (e.g. `my-org/ai-content`), then clone it locally.
+```json
+{
+  "secrets": ["GITHUB_TOKEN"]
+}
+```
 
-### 2. Initialize the structure
+Auth resolves automatically: `GITHUB_TOKEN` env var → `gh` CLI token → anonymous (public repos only).
 
-Run this one-liner from inside the cloned repo to create the required layout:
+From the CLI, the equivalent is a flag instead of YAML:
+
+```bash
+GITHUB_TOKEN=$(gh auth token) bash scaffold-ai.sh install --content-repo https://github.com/my-org/ai-content
+```
+
+### Bootstrapping a new content repo
 
 ```bash
 mkdir -p agents skills/my-first-skill && \
@@ -228,49 +264,7 @@ mkdir -p agents skills/my-first-skill && \
   printf '# My First Skill\n\nDescribe what this skill does.\n' > skills/my-first-skill/SKILL.md
 ```
 
-This creates:
-
-```
-my-content-repo/
-├── agents/
-│   └── metadata.yml
-└── skills/
-    ├── metadata.yml
-    └── my-first-skill/
-        └── SKILL.md
-```
-
-### 3. Add agents and skills
-
-Follow the same conventions as `content/` in this repo:
-
-- Agent body → `agents/<key>.md` (no frontmatter), registered in `agents/metadata.yml`
-- Skill body → `skills/<key>/SKILL.md` (no frontmatter), registered in `skills/metadata.yml`
-
-See [AGENTS.md](./AGENTS.md) for the full `metadata.yml` format and content standards.
-
-### 4. Use it with scaffold-ai
-
-**Devcontainer:**
-
-```json
-{
-  "features": {
-    "ghcr.io/fabriziocafolla/scaffold-ai:0": {
-      "contentRepo": "https://github.com/my-org/ai-content"
-    }
-  },
-  "secrets": ["GITHUB_TOKEN"]
-}
-```
-
-**CLI:**
-
-```bash
-GITHUB_TOKEN=$(gh auth token) bash scaffold-ai.sh --content-repo https://github.com/my-org/ai-content
-```
-
-Remote content is merged on top of bundled defaults same key overrides, missing keys fall back to defaults. Use `--no-defaults` / `installDefaults: false` to skip bundled defaults entirely.
+Follow the same conventions as `content/` in this repo: agent body → `agents/<key>.md`, skill body → `skills/<key>/SKILL.md`, both registered in the matching `metadata.yml`. See [AGENTS.md](./AGENTS.md) for the full `metadata.yml` format and content standards.
 
 ---
 

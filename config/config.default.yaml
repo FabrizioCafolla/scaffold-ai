@@ -1,0 +1,26 @@
+# scaffold-ai workspace config — single source of truth for what gets
+# installed and scaffolded. Copied to .scaffold-ai/config.yaml on first run
+# (copy-once); edit that copy, not this template.
+version: 1
+
+# Tools to scaffold skills/agents/hooks for: claude, copilot
+tools: [claude]
+
+# Optional CLI/MCP binaries installed via uv
+install:
+  rtk: true
+  headroom: true
+  wikictl: false
+
+# scaffold.py behavior flags
+scaffold:
+  createFileMCP: true
+  createFileHooks: true
+  createFileSetting: true
+  updateGitignore: true
+  installDefaults: true
+
+# Optional private content repo merged on top of bundled defaults
+contentRepo:
+  url: ""
+  ref: main
