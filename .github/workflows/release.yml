@@ -7,10 +7,6 @@ on:
     paths:
       - devcontainer-feature.json
       - install.sh
-      - scaffold.py
-      - cli.sh
-      - config/**
-      - content/**
   workflow_dispatch:
 
 jobs:
@@ -26,11 +22,17 @@ jobs:
 
       # devcontainers/action expects: src/<feature-id>/devcontainer-feature.json
       # Since this repo keeps everything at root, we build the layout at publish time.
+      #
+      # Only the manifest + install.sh are published. Nothing else is vendored:
+      # install.sh generates a `scaffoldai` launcher that fetches cli.sh (and
+      # the scaffold.py/content/wikictl it needs) from this repo at runtime,
+      # pinned to the feature version. This removes the packaging step that
+      # previously had to be kept in sync by hand (and once silently dropped
+      # the vendored wikictl source).
       - name: Prepare feature structure
         run: |
           mkdir -p src/scaffold-ai
-          cp devcontainer-feature.json install.sh scaffold.py src/scaffold-ai/
-          cp -R config content src/scaffold-ai/
+          cp devcontainer-feature.json install.sh src/scaffold-ai/
 
       - name: Publish feature to GHCR
         uses: devcontainers/action@v1.4.3
@@ -40,3 +42,20 @@ jobs:
           generate-docs: 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # scaffoldai pins its runtime fetch (cli.sh + scaffold-ai assets) to a
+      # git ref equal to the feature version, so that ref must exist as a tag
+      # or the pinned curl/clone 404s.
+      - name: Read feature version
+        id: version
+        run: echo "version=$(jq -r .version devcontainer-feature.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Tag release ref
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if git rev-parse "refs/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "Tag ${VERSION} already exists, skipping"
+          else
+            git tag "${VERSION}"
+            git push origin "${VERSION}"
+          fi

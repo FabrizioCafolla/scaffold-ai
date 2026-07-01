@@ -1,16 +1,11 @@
 {
   "id": "scaffold-ai",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "name": "Scaffold AI",
-  "description": "Scaffolds AI agent and skill assets (Claude, Copilot) into the workspace. Works at container create time and skips subsequent runs when content has not changed.",
+  "description": "Scaffolds AI agent and skill assets (Claude, Copilot) into the workspace. Provisions at container create time via a config-driven CLI (scaffoldai) and re-syncs on every start when content has changed. Structured config (tools, content repo) lives in the workspace's .scaffold-ai/config.yaml; feature options here are boolean enables only.",
   "documentationURL": "https://containers.dev/features",
   "installsAfter": ["ghcr.io/devcontainers/features/python:1"],
   "options": {
-    "tools": {
-      "type": "string",
-      "default": "claude",
-      "description": "Comma-separated list of tools to scaffold. Supported values: claude, copilot. Default: claude only."
-    },
     "createFileMCP": {
       "type": "boolean",
       "default": true,
@@ -49,18 +44,9 @@
     "installWikictl": {
       "type": "boolean",
       "default": false,
-      "description": "Install wikictl, a file-based memory layer for AI agents (CLI + MCP server + wikictl-* skills). Off by default. When true, the vendored wikictl package is installed via `uv tool install` and a gated wikictl entry is added to the scaffolded .mcp.json. Requires uv."
-    },
-    "contentRepo": {
-      "type": "string",
-      "default": "",
-      "description": "GitHub repo URL providing additional agents/skills (e.g. https://github.com/user/my-ai-content). Merged on top of defaults. Requires GITHUB_TOKEN secret for private repos."
-    },
-    "contentRepoRef": {
-      "type": "string",
-      "default": "main",
-      "description": "Branch or tag of the content repo to use."
+      "description": "Install wikictl, a file-based memory layer for AI agents (CLI + MCP server + wikictl-* skills). Off by default. When true, wikictl is installed via `uv tool install` from the scaffold-ai checkout fetched at container create, and a gated wikictl entry is added to the scaffolded .mcp.json. Requires uv."
     }
   },
-  "postStartCommand": "scaffold-ai-cmd"
+  "postCreateCommand": "scaffoldai install",
+  "postStartCommand": "scaffoldai sync"
 }
